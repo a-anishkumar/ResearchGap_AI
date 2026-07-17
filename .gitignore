@@ -1,0 +1,36 @@
+# ─── Secrets / credentials ─────────────────────────────────────────────────
+backend/.env
+
+# ─── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+backend/venv/
+backend/.venv/
+*.pyo
+
+# ─── Data / uploads / vector store ─────────────────────────────────────────
+backend/data/raw/
+backend/data/chroma/
+neo4j_data/
+
+# ─── Node / frontend ────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ─── IDE / OS ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ─── Logs ───────────────────────────────────────────────────────────────────
+*.log
