@@ -9,14 +9,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 async def test():
     from app.core.config import settings
     print(f"Neo4j URI: {settings.neo4j_uri}")
-    print(f"Anthropic key set: {bool(settings.anthropic_api_key)}")
+    print(f"Gemini key set: {bool(settings.gemini_api_key)}")
 
     try:
         from app.core.neo4j_driver import verify_connectivity
         await verify_connectivity()
-        print("✅ Neo4j connected!")
+        print("[OK] Neo4j connection verified (or fallback active)")
     except Exception as e:
-        print(f"❌ Neo4j error: {e}")
+        print(f"[ERROR] Neo4j error: {e}")
         print("   → Check your NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD in .env")
 
 asyncio.run(test())
+

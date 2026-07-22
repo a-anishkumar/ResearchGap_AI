@@ -17,7 +17,12 @@ backend/.venv/
 # ─── Data / uploads / vector store ─────────────────────────────────────────
 backend/data/raw/
 backend/data/chroma/
+backend/data/projects/
+backend/data/*.db
+data/
 neo4j_data/
+*.db
+
 
 # ─── Node / frontend ────────────────────────────────────────────────────────
 frontend/node_modules/

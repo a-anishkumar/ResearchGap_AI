@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react'
 import useStore from '../api/store'
 import { getAllStatus } from '../api/client'
 import PaperProgressCard from '../components/PaperProgressCard'
+import PaperDetailDrawer from '../components/PaperDetailDrawer'
 
 export default function ProcessingPage() {
-  const { papers, setPapers, setPage } = useStore()
+  const { papers, setPapers, setPage, setSelectedPaper } = useStore()
   const intervalRef = useRef(null)
 
   // Poll status every 2s until all papers are done or errored
@@ -70,8 +71,11 @@ export default function ProcessingPage() {
             />
           </div>
           {allDone && (
-            <p className="mt-3 text-sm text-accent-green font-semibold">
-              ✅ All papers processed! Ready to explore the knowledge graph.
+            <p className="mt-3 text-sm text-accent-green font-semibold flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-accent-green shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              All papers processed! Ready to explore the knowledge graph.
             </p>
           )}
         </div>
@@ -79,7 +83,11 @@ export default function ProcessingPage() {
         {/* Paper cards grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {papers.map(p => (
-            <PaperProgressCard key={p.paper_id} paper={p} />
+            <PaperProgressCard
+              key={p.paper_id}
+              paper={p}
+              onViewDetail={() => setSelectedPaper(p)}
+            />
           ))}
         </div>
 
@@ -89,20 +97,27 @@ export default function ProcessingPage() {
             <button
               id="view-graph-btn"
               onClick={() => setPage('graph')}
-              className="btn-primary flex-1 justify-center"
+              className="btn-primary flex-1 justify-center flex items-center gap-2"
             >
-              🕸️ View Knowledge Graph
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              View Knowledge Graph
             </button>
             <button
               id="view-gaps-btn"
               onClick={() => setPage('gaps')}
-              className="btn-secondary flex-1 justify-center text-sm"
+              className="btn-secondary flex-1 justify-center text-sm flex items-center gap-2"
             >
-              🔬 Discover Research Gaps
+              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Discover Research Gaps
             </button>
           </div>
         )}
       </div>
+      <PaperDetailDrawer />
     </div>
   )
 }

@@ -6,33 +6,33 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 from pathlib import Path
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_collection = None
+_collections: dict[str, Any] = {}
 
 
 def _get_collection():
-    global _collection
-    if _collection is None:
+    from app.core.project import get_project_name, get_chroma_path
+    project = get_project_name()
+    if project not in _collections:
         import chromadb
         from chromadb.config import Settings as ChromaSettings
 
-        path = str(Path(settings.vector_db_path).resolve())
-        Path(path).mkdir(parents=True, exist_ok=True)
-
+        path = str(get_chroma_path().resolve())
         client = chromadb.PersistentClient(
             path=path,
             settings=ChromaSettings(anonymized_telemetry=False),
         )
-        _collection = client.get_or_create_collection(
+        _collections[project] = client.get_or_create_collection(
             name="papers",
             metadata={"hnsw:space": "cosine"},
         )
-        logger.info(f"ChromaDB collection ready at {path} ({_collection.count()} docs)")
-    return _collection
+        logger.info(f"ChromaDB collection for project '{project}' ready at {path} ({_collections[project].count()} docs)")
+    return _collections[project]
 
 
 def _get_embedding_fn():
@@ -116,3 +116,16 @@ def get_collection_stats() -> dict:
         return {"document_count": col.count()}
     except Exception as e:
         return {"document_count": 0, "error": str(e)}
+
+
+def delete_paper_chunks(paper_id: str):
+    """Delete all text chunks associated with a specific paper from ChromaDB."""
+    collection = _get_collection()
+    try:
+        existing = collection.get(where={"paper_id": paper_id})
+        if existing["ids"]:
+            collection.delete(ids=existing["ids"])
+            logger.info(f"Deleted chunks for paper {paper_id} from ChromaDB")
+    except Exception as e:
+        logger.warning(f"Failed to delete chunks for paper {paper_id} from ChromaDB: {e}")
+        raise

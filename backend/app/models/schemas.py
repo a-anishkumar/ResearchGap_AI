@@ -114,3 +114,4 @@ class ProcessingState(BaseModel):
     progress: int  # 0–100
     error: Optional[str] = None
     extraction: Optional[PaperExtraction] = None
+    project: str = "default"

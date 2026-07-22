@@ -121,3 +121,151 @@
   border: 1px solid rgba(255,255,255,0.1);
   backdrop-filter: blur(8px);
 }
+
+/* Skeleton loader */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1a1f35 25%, #252b45 50%, #1a1f35 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+
+/* Stat card glow hover */
+.stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(97,114,243,0.2);
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.35s ease-out both;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Pulse slow */
+@keyframes pulseSlow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.animate-pulse-slow {
+  animation: pulseSlow 2.5s ease-in-out infinite;
+}
+
+/* Search highlight ring */
+.node-highlight {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.6);
+}
+
+/* Chat bubble styles */
+.chat-user {
+  @apply ml-auto bg-brand-900/80 border border-brand-700/40 rounded-2xl rounded-tr-sm px-4 py-3 max-w-lg text-sm text-slate-200;
+}
+.chat-ai {
+  @apply mr-auto bg-surface-600/80 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 max-w-2xl text-sm text-slate-200 leading-relaxed;
+}
+
+/* ─── Node Detail Panel ─────────────────────────────────── */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slideOutRight {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
+.panel-enter {
+  animation: slideInRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.panel-exit {
+  animation: slideOutRight 0.22s ease-in both;
+}
+
+/* Analytics panel */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.panel-enter-left {
+  animation: slideInLeft 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Node type pill */
+.node-pill {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold;
+}
+
+/* Graph degree badge */
+.degree-badge {
+  @apply inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold bg-white/10 text-slate-300;
+}
+
+/* Connection bar fill */
+.conn-bar {
+  height: 4px;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* Scrollable panel body */
+.panel-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #353aa8 transparent;
+}
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb { background: #353aa8; border-radius: 2px; }
+
+/* Graph controls backdrop */
+.graph-controls-bar {
+  background: rgba(10, 12, 20, 0.88);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Glowing stat pill */
+.stat-pill {
+  @apply flex flex-col items-center px-4 py-1.5 rounded-xl bg-surface-700/60 border border-white/5;
+  transition: box-shadow 0.2s ease;
+}
+.stat-pill:hover {
+  box-shadow: 0 0 12px rgba(97,114,243,0.25);
+}
+
+/* Relationship legend line */
+.rel-legend-line {
+  display: inline-block;
+  width: 28px;
+  height: 2px;
+  border-radius: 1px;
+  vertical-align: middle;
+}

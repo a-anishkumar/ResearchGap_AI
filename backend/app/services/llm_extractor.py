@@ -7,13 +7,19 @@ Normalizes all entity names before returning.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import logging
 from app.core.claude_client import complete
 from app.models.schemas import PaperExtraction, ResultItem
+from app.core.ollama_client import generate_ollama
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Global concurrency semaphore for LLM extraction requests (max 5 parallel LLM API calls)
+_EXTRACTION_SEMAPHORE = asyncio.Semaphore(5)
 
 # ── Name normalization ─────────────────────────────────────────────────────────
 
@@ -54,10 +60,62 @@ _SYNONYMS: dict[str, str] = {
 }
 
 
+# Acronym allowlist to preserve uppercase casing
+_ACRONYMS: dict[str, str] = {
+    "llm": "LLM",
+    "llms": "LLMs",
+    "nlp": "NLP",
+    "rag": "RAG",
+    "xai": "XAI",
+    "cnn": "CNN",
+    "cnns": "CNNs",
+    "rnn": "RNN",
+    "rnns": "RNNs",
+    "gan": "GAN",
+    "gans": "GANs",
+    "bert": "BERT",
+    "gpt": "GPT",
+    "t5": "T5",
+    "roberta": "RoBERTa",
+    "xlnet": "XLNet",
+    "lstm": "LSTM",
+    "lstms": "LSTMs",
+    "gru": "GRU",
+    "api": "API",
+    "apis": "APIs",
+    "ner": "NER",
+    "qa": "QA",
+    "mt": "MT",
+    "ai": "AI",
+    "ml": "ML",
+    "dl": "DL",
+    "rl": "RL",
+    "gpu": "GPU",
+    "gpus": "GPUs",
+}
+
+
+def smart_title_case(text: str) -> str:
+    """Title-case words while preserving exact acronym capitalization in allowlist."""
+    tokens = re.split(r'(\s+|[\(\)\[\]\{\},:\.-])', text)
+    result = []
+    for token in tokens:
+        clean_token = token.lower()
+        if clean_token in _ACRONYMS:
+            result.append(_ACRONYMS[clean_token])
+        elif token and not token.isspace() and len(token) > 0:
+            result.append(token.capitalize())
+        else:
+            result.append(token)
+    return "".join(result)
+
+
 def normalize_name(name: str) -> str:
-    """Lowercase, strip, collapse whitespace, then apply synonym map."""
+    """Lowercase, strip, collapse whitespace, then apply synonym map and smart casing."""
     cleaned = re.sub(r"\s+", " ", name.strip().lower())
-    return _SYNONYMS.get(cleaned, cleaned.title())
+    if cleaned in _SYNONYMS:
+        return _SYNONYMS[cleaned]
+    return smart_title_case(cleaned)
 
 
 def normalize_list(names: list[str]) -> list[str]:
@@ -71,6 +129,7 @@ def normalize_list(names: list[str]) -> list[str]:
             seen.add(norm.lower())
             result.append(norm)
     return result
+
 
 
 # ── Prompt ────────────────────────────────────────────────────────────────────
@@ -101,15 +160,19 @@ Rules:
 """
 
 
-def _build_user_prompt(extraction_text: str, filename: str) -> str:
-    return f"""Paper filename: {filename}
+def _build_user_prompt(extraction_text: str, filename: str, error_feedback: str | None = None) -> str:
+    prompt = f"""Paper filename: {filename}
 
 Paper text (abstract + methods + results sections):
 ---
 {extraction_text[:4000]}
 ---
+"""
+    if error_feedback:
+        prompt += f"\n\nCRITICAL FIX REQUIRED: Your previous attempt failed validation with error: {error_feedback}. Ensure strict compliance with the JSON schema."
 
-Extract and return the JSON object."""
+    prompt += "\n\nExtract and return the JSON object."
+    return prompt
 
 
 def _parse_json_response(response: str) -> dict:
@@ -126,41 +189,103 @@ async def extract_paper(
     filename: str = "unknown.pdf",
 ) -> PaperExtraction:
     """
-    Call Claude to extract structured entities from paper text.
-    Retries up to 3x on malformed JSON.
-    Raises on persistent failure.
+    Extract structured entities from paper text with concurrency control and Pydantic validation retry.
+    Cap concurrency at 5 parallel LLM API calls using _EXTRACTION_SEMAPHORE.
     """
-    last_error: Exception | None = None
-    for attempt in range(1, 4):
-        try:
-            raw = await complete(
-                system=_SYSTEM_PROMPT,
-                user=_build_user_prompt(extraction_text, filename),
-                max_tokens=1024,
-            )
-            data = _parse_json_response(raw)
+    async with _EXTRACTION_SEMAPHORE:
+        ollama_draft = None
+        if settings.use_ollama:
+            try:
+                logger.info(f"Starting local Ollama pre-extraction for '{filename}' using {settings.ollama_model}...")
+                ollama_prompt = (
+                    f"Paper filename: {filename}\n\n"
+                    f"Paper text (first 10,000 characters):\n"
+                    f"---\n{extraction_text[:10000]}\n---\n\n"
+                    "Please extract key facts (Title, Authors, Year, Methods, Domains, Datasets, Results) "
+                    "and output them in a highly compact, structured bulleted list format."
+                )
+                ollama_system = (
+                    "You are an expert academic literature parser. "
+                    "Provide a highly condensed summary of the paper's key elements (Title, Authors, Year, Methods, Domains, Datasets, Results). "
+                    "Output ONLY the bulleted list. Do not include introductory or concluding conversational text."
+                )
+                ollama_draft = await generate_ollama(prompt=ollama_prompt, system_instruction=ollama_system)
+                logger.info(
+                    f"Ollama pre-extraction complete. Condensed {len(extraction_text)} chars of raw text "
+                    f"down to {len(ollama_draft)} chars of draft summary."
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Local Ollama pre-extraction failed for '{filename}': {e}. "
+                    "Falling back to direct Gemini extraction."
+                )
+                ollama_draft = None
 
-            # Normalize before validation
-            if "methods" in data and isinstance(data["methods"], list):
-                data["methods"] = normalize_list(data["methods"])
-            if "domains" in data and isinstance(data["domains"], list):
-                data["domains"] = normalize_list(data["domains"])
-            if "datasets" in data and isinstance(data["datasets"], list):
-                data["datasets"] = normalize_list(data["datasets"])
+        last_error: Exception | None = None
+        error_feedback: str | None = None
+        for attempt in range(1, 4):
+            try:
+                if ollama_draft:
+                    # Stage 2: Minimal Gemini call using the Ollama draft
+                    system_prompt = (
+                        "You are a structured extraction engine. Convert the raw local draft text into a valid JSON object matching the requested schema.\n"
+                        "No markdown fences, no explanation — just raw JSON.\n\n"
+                        "JSON Schema:\n"
+                        "{\n"
+                        '  "title": "string — full paper title",\n'
+                        '  "authors": ["string", ...],\n'
+                        '  "year": integer or null,\n'
+                        '  "methods": ["string", ...],\n'
+                        '  "domains": ["string", ...],\n'
+                        '  "datasets": ["string", ...],\n'
+                        '  "results": [\n'
+                        '    {"metric": "string", "value": "string", "description": "string"}\n'
+                        "  ]\n"
+                        "}"
+                    )
+                    user_prompt = (
+                        f"Convert the following local draft extraction into a valid JSON object:\n"
+                        f"---\n{ollama_draft}\n---\n\n"
+                    )
+                    if error_feedback:
+                        user_prompt += f"Previous error to fix: {error_feedback}\n"
+                    user_prompt += "Extract and return the JSON object."
+                else:
+                    # Direct LLM call with error feedback on retry
+                    system_prompt = _SYSTEM_PROMPT
+                    user_prompt = _build_user_prompt(extraction_text, filename, error_feedback)
 
-            extraction = PaperExtraction(**data)
-            logger.info(
-                f"Extracted from '{filename}': "
-                f"{len(extraction.methods)} methods, "
-                f"{len(extraction.domains)} domains, "
-                f"{len(extraction.datasets)} datasets"
-            )
-            return extraction
+                raw = await complete(
+                    system=system_prompt,
+                    user=user_prompt,
+                    max_tokens=1048,
+                )
+                data = _parse_json_response(raw)
 
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
-            last_error = e
-            logger.warning(f"Attempt {attempt}/3 — malformed JSON from LLM: {e}")
+                # Normalize before validation
+                if "methods" in data and isinstance(data["methods"], list):
+                    data["methods"] = normalize_list(data["methods"])
+                if "domains" in data and isinstance(data["domains"], list):
+                    data["domains"] = normalize_list(data["domains"])
+                if "datasets" in data and isinstance(data["datasets"], list):
+                    data["datasets"] = normalize_list(data["datasets"])
 
-    # After 3 failures return a minimal extraction rather than crashing the batch
-    logger.error(f"All 3 extraction attempts failed for '{filename}': {last_error}")
-    return PaperExtraction(title=filename.replace(".pdf", ""))
+                extraction = PaperExtraction(**data)
+                logger.info(
+                    f"Extracted from '{filename}': "
+                    f"{len(extraction.methods)} methods, "
+                    f"{len(extraction.domains)} domains, "
+                    f"{len(extraction.datasets)} datasets"
+                )
+                return extraction
+
+            except Exception as e:
+                last_error = e
+                error_feedback = str(e)
+                logger.warning(f"Attempt {attempt}/3 — extraction error for '{filename}': {e}")
+                await asyncio.sleep(0.5 * attempt)  # exponential backoff on error
+
+        # After 3 failures return a minimal extraction rather than crashing the batch
+        logger.error(f"All 3 extraction attempts failed for '{filename}': {last_error}")
+        return PaperExtraction(title=filename.replace(".pdf", ""))
+

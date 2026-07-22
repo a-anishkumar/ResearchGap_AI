@@ -28,5 +28,10 @@ class Settings(BaseSettings):
     top_gaps: int = 20
     rag_top_k: int = 5
 
+    # Ollama
+    use_ollama: bool = False
+    ollama_host: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"
+
 
 settings = Settings()

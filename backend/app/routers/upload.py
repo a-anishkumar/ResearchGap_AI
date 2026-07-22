@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.models.schemas import UploadResponse, PaperMeta, ProcessingState
+from app.core.project import get_raw_dir, get_project_name
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -78,7 +79,10 @@ async def _run_pipeline(paper_id: str, pdf_path: Path, filename: str):
         # Stage 4: Write to Neo4j graph
         state.stage = "graphing"
         state.progress = 90
-        await graph_builder.write_paper(paper_id, filename, extraction)
+        try:
+            await graph_builder.write_paper(paper_id, filename, extraction)
+        except Exception as e:
+            logger.warning(f"Could not write paper {filename} to Neo4j (skipping): {e}")
         state.stage = "done"
         state.progress = 100
         logger.info(f"Pipeline complete for {filename} ({paper_id})")
@@ -95,7 +99,7 @@ async def upload_papers(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
 ):
-    raw_dir = Path(settings.data_raw_path)
+    raw_dir = get_raw_dir()
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     papers: list[PaperMeta] = []
@@ -121,6 +125,7 @@ async def upload_papers(
             filename=upload.filename,
             stage="uploaded",
             progress=5,
+            project=get_project_name()
         )
         set_state(state)
 
@@ -148,4 +153,45 @@ async def get_upload_status(paper_id: str):
 
 @router.get("/status")
 async def get_all_status():
-    return list(processing_states.values())
+    current_proj = get_project_name()
+    return [s for s in processing_states.values() if s.project == current_proj]
+
+
+@router.delete("/{paper_id}")
+async def delete_paper_endpoint(paper_id: str):
+    """
+    Delete paper from memory, raw storage, ChromaDB, and Neo4j/SQLite graph.
+    """
+    from app.services import graph_builder, rag
+    import os
+
+    # 1. Remove from in-memory processing states
+    if paper_id in processing_states:
+        del processing_states[paper_id]
+
+    # 2. Delete the physical PDF file
+    try:
+        raw_dir = get_raw_dir()
+        pdf_path = raw_dir / f"{paper_id}.pdf"
+        if pdf_path.exists():
+            os.remove(pdf_path)
+            logger.info(f"Deleted PDF file on disk: {pdf_path}")
+    except Exception as e:
+        logger.warning(f"Could not delete PDF file for {paper_id}: {e}")
+
+    # 3. Delete from ChromaDB vector store
+    try:
+        rag.delete_paper_chunks(paper_id)
+    except Exception as e:
+        logger.warning(f"Could not delete ChromaDB chunks for {paper_id}: {e}")
+
+    # 4. Delete from graph DB (Neo4j or SQLite)
+    try:
+        await graph_builder.delete_paper(paper_id)
+    except Exception as e:
+        logger.exception(f"Error deleting paper {paper_id} from graph database: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete paper from graph database: {e}"
+        )
+
+    return {"status": "ok", "message": f"Paper {paper_id} deleted successfully"}

@@ -68,6 +68,58 @@ async def get_papers_for_domain(domain: str) -> list[str]:
     return [r["title"] for r in rows]
 
 
+import httpx
+import xml.etree.ElementTree as ET
+import urllib.parse
+
+async def check_external_gap_validation(method: str, domain: str) -> dict:
+    """
+    Cross-check candidate gap against external arXiv API to detect global false positives.
+    If papers exist globally outside this corpus, flags external_presence=True.
+    """
+    query_str = f'all:"{method}" AND all:"{domain}"'
+    encoded_query = urllib.parse.quote(query_str)
+    url = f"http://export.arxiv.org/api/query?search_query={encoded_query}&max_results=3"
+    
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                root = ET.fromstring(resp.text)
+                # arXiv API uses Atom namespace
+                ns = {'atom': 'http://www.w3.org/2005/Atom'}
+                entries = root.findall('atom:entry', ns)
+                count = len(entries)
+                if count > 0:
+                    title_elem = entries[0].find('atom:title', ns)
+                    sample_title = title_elem.text.strip() if title_elem is not None and title_elem.text else "External Publication"
+                    return {
+                        "external_presence": True,
+                        "external_count": count,
+                        "status": "Corpus Gap (External Papers Exist)",
+                        "sample_external_paper": sample_title,
+                        "confidence_rating": "Medium (Local Corpus Gap)"
+                    }
+                else:
+                    return {
+                        "external_presence": False,
+                        "external_count": 0,
+                        "status": "High-Confidence Global Gap",
+                        "sample_external_paper": None,
+                        "confidence_rating": "High (Unexplored Globally)"
+                    }
+    except Exception as e:
+        logger.debug(f"External arXiv cross-check skipped for '{method} x {domain}': {e}")
+
+    return {
+        "external_presence": False,
+        "external_count": 0,
+        "status": "Unverified (Local Corpus Gap)",
+        "sample_external_paper": None,
+        "confidence_rating": "Moderate"
+    }
+
+
 async def analyze_gaps(top_n: int = 20) -> dict:
     """
     Compute Method × Domain gap analysis.
@@ -114,3 +166,4 @@ async def analyze_gaps(top_n: int = 20) -> dict:
         "missing_pairs": len(candidates),
         "top_gaps": top_gaps,
     }
+

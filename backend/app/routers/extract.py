@@ -18,7 +18,8 @@ router = APIRouter(prefix="/api/extract", tags=["extract"])
 
 @router.post("/{paper_id}", response_model=ExtractResponse)
 async def extract_single(paper_id: str):
-    raw_dir = Path(settings.data_raw_path)
+    from app.core.project import get_raw_dir
+    raw_dir = get_raw_dir()
     pdf_path = raw_dir / f"{paper_id}.pdf"
 
     if not pdf_path.exists():
