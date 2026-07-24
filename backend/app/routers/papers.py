@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import logging
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.services import rag, graph_builder, paper_analyzer, paper_chat
+from app.services import rag, graph_builder, paper_analyzer, paper_chat, llm_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/papers", tags=["papers"])
@@ -104,6 +105,16 @@ async def analyze_single_paper(paper_id: str):
 async def chat_with_paper_endpoint(paper_id: str, req: PaperChatRequest):
     """Ask a question about a specific paper with RAG citations."""
     return await paper_chat.chat_with_paper(paper_id, req.message, req.conversation_id)
+
+
+@router.post("/{paper_id}/chat/stream")
+async def stream_paper_chat_endpoint(paper_id: str, req: PaperChatRequest):
+    """Stream Q&A response for paper chat using SSE."""
+    prompt = f"Answer question regarding paper {paper_id}: {req.message}"
+    return StreamingResponse(
+        llm_client.stream_generate(prompt, system_instruction="You are an intelligent AI paper assistant."),
+        media_type="text/event-stream"
+    )
 
 
 @router.get("/{paper_id}/chat/history")

@@ -32,11 +32,16 @@ export const getAllStatus = () => api.get('/upload/status')
 // Poll status for a single paper
 export const getPaperStatus = (paperId) => api.get(`/upload/status/${paperId}`)
 
-// Graph data
-export const getGraphStats  = () => api.get('/graph/stats')
-export const getGraphData   = () => api.get('/graph/data')
-export const getEntities    = () => api.get('/graph/entities')
-export const getNodeDetail  = (nodeId, nodeType) => api.get(`/graph/node/${encodeURIComponent(nodeId)}`, { params: { node_type: nodeType } })
+// Graph data & S2 features
+export const getGraphStats    = () => api.get('/graph/stats')
+export const getGraphData     = () => api.get('/graph/data')
+export const getEntities      = () => api.get('/graph/entities')
+export const getNodeDetail    = (nodeId, nodeType) => api.get(`/graph/node/${encodeURIComponent(nodeId)}`, { params: { node_type: nodeType } })
+export const getTimeline       = () => api.get('/graph/timeline')
+export const connectPapers    = (paperIdA, paperIdB) => api.post('/graph/connect', { paper_id_a: paperIdA, paper_id_b: paperIdB })
+export const getAuthorNetwork = () => api.get('/graph/authors')
+export const getAuthorDetail  = (name) => api.get(`/graph/authors/${encodeURIComponent(name)}`)
+
 
 // Gap analysis
 export const analyzeGaps  = (topN = 20) => api.get(`/gaps/analyze?top_n=${topN}`)
@@ -62,8 +67,14 @@ export const chatWithPaper  = (paperId, message, conversationId) => api.post(`/p
 export const getPaperChatHistory = (paperId, conversationId) => api.get(`/papers/${paperId}/chat/history`, { params: { conversation_id: conversationId } })
 export const explainSelection    = (paperId, selectedText) => api.post(`/papers/${paperId}/explain-selection`, { selected_text: selectedText })
 
+// Proposal & Polish
+export const generateProposal = (method, domain, suggestion = '') => api.post(`/gaps/proposals/generate?method=${encodeURIComponent(method)}&domain=${encodeURIComponent(domain)}&suggestion=${encodeURIComponent(suggestion)}`)
+export const getProposal      = (id) => api.get(`/gaps/proposals/${encodeURIComponent(id)}`)
+export const polishProposal   = (id) => api.post(`/gaps/proposals/${encodeURIComponent(id)}/polish`)
+
 // Projects Management
 export const getProjects    = () => api.get('/projects')
 export const deleteProject  = (name) => api.delete(`/projects/${encodeURIComponent(name)}`)
+
 
 

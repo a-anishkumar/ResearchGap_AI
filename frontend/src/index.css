@@ -91,13 +91,13 @@
   }
 
   .nav-link {
-    @apply flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-           text-slate-400 hover:text-white hover:bg-surface-500
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs lg:text-sm lg:px-3 font-medium whitespace-nowrap shrink-0
+           text-slate-400 hover:text-white hover:bg-surface-500/80
            transition-all duration-150;
   }
 
   .nav-link.active {
-    @apply text-white bg-brand-900/60 border border-brand-700/40;
+    @apply text-white bg-brand-900/60 border border-brand-700/40 shadow-sm;
   }
 }
 

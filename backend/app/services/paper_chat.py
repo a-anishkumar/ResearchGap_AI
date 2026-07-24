@@ -95,15 +95,22 @@ async def get_chat_history(paper_id: str, conversation_id: str | None = None) ->
     history = []
     for role, content, citations_json, conv_id, created_at in rows:
         citations = []
+        citation_flags = []
         if citations_json:
             try:
-                citations = json.loads(citations_json)
+                parsed_cits = json.loads(citations_json)
+                if isinstance(parsed_cits, dict):
+                    citations = parsed_cits.get("citations", [])
+                    citation_flags = parsed_cits.get("citation_flags", [])
+                elif isinstance(parsed_cits, list):
+                    citations = parsed_cits
             except Exception:
                 pass
         history.append({
             "role": role,
             "content": content,
             "citations": citations,
+            "citation_flags": citation_flags,
             "conversation_id": conv_id,
             "created_at": created_at,
         })
@@ -184,8 +191,8 @@ async def chat_with_paper(paper_id: str, message: str, conversation_id: str | No
     system_prompt = (
         "You are an intelligent AI paper assistant inside ResearchGap AI. "
         "Answer the user's question accurately based ONLY on the provided paper chunks and conversation history. "
-        "Every claim in your answer must cite the relevant Chunk ID using [Chunk ID] inline. "
-        "Provide a structured JSON response with keys 'answer' and 'used_citations'."
+        "Every claim in your answer must cite the relevant section inline where appropriate. "
+        "Provide a structured JSON response with keys 'answer' and 'citations'."
     )
 
     user_prompt = f"""
@@ -199,33 +206,42 @@ User Question: {message}
 
 Generate a JSON response with EXACTLY this schema:
 {{
-  "answer": "Clear, detailed response answering the question, embedding inline citations like [paper_id_0] where appropriate.",
-  "used_citations": [
+  "answer": "Clear, detailed response answering the question, embedding inline citations where appropriate.",
+  "citations": [
     {{
-      "chunk_id": "chunk_id_string",
       "section": "Section name",
-      "text_snippet": "Relevant text excerpt (1-2 sentences)"
+      "excerpt": "Relevant text excerpt (1-2 sentences)"
     }}
   ]
 }}
 """
 
+    rag_text_chunks = [c["full_doc"] for c in chunks]
+
     try:
-        raw_resp = await complete(system_prompt, user_prompt, max_tokens=1500)
-        clean_json = _clean_json_string(raw_resp)
-        llm_out = json.loads(clean_json)
-        answer = llm_out.get("answer", "Here is what I found in the paper.")
-        citations = llm_out.get("used_citations", [])
+        from app.services import llm_client
+        from app.models.schemas import PaperChatResponse
+
+        chat_resp = await llm_client.generate_structured(
+            prompt=user_prompt,
+            schema_cls=PaperChatResponse,
+            system_instruction=system_prompt,
+            endpoint="paper_chat",
+            rag_chunks=rag_text_chunks,
+        )
+        answer = chat_resp.answer
+        citations = [c.model_dump() for c in chat_resp.citations]
+        citation_flags = [f.model_dump() for f in chat_resp.citation_flags]
     except Exception as e:
         logger.error(f"Error calling LLM for paper chat: {e}")
         answer = f"Based on the paper content: {chunks[0]['text_snippet'] if chunks else 'No specific text found.'}"
         citations = [
             {
-                "chunk_id": c["chunk_id"],
                 "section": c["section"],
-                "text_snippet": c["text_snippet"],
+                "excerpt": c["text_snippet"],
             } for c in chunks[:2]
         ]
+        citation_flags = []
 
     # Save turns to database
     now_str = datetime.datetime.utcnow().isoformat()
@@ -239,7 +255,7 @@ Generate a JSON response with EXACTLY this schema:
     # Save assistant response
     cursor.execute(
         "INSERT INTO paper_chat_history (paper_id, conversation_id, role, content, citations_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (paper_id, conv_id, "assistant", answer, json.dumps(citations), now_str)
+        (paper_id, conv_id, "assistant", answer, json.dumps({"citations": citations, "citation_flags": citation_flags}), now_str)
     )
     conn.commit()
     conn.close()
@@ -247,6 +263,7 @@ Generate a JSON response with EXACTLY this schema:
     return {
         "answer": answer,
         "citations": citations,
+        "citation_flags": citation_flags,
         "conversation_id": conv_id,
     }
 

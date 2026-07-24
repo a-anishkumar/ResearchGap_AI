@@ -3,16 +3,19 @@ import Navbar from './components/Navbar'
 import UploadPage from './pages/UploadPage'
 import ProcessingPage from './pages/ProcessingPage'
 import GraphPage from './pages/GraphPage'
+import TimelineView from './pages/TimelineView'
+import AuthorNetworkView from './pages/AuthorNetworkView'
 import GapsPage from './pages/GapsPage'
 import DashboardPage from './pages/DashboardPage'
 import SearchPage from './pages/SearchPage'
 import ProjectsPage from './pages/ProjectsPage'
 import CompareModal from './components/CompareModal'
+import LiteratureConnectorModal from './components/LiteratureConnectorModal'
 import { ToastProvider } from './components/Toast'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
-function FloatingCompareBar() {
+function FloatingCompareBar({ onConnectClick }) {
   const { comparePaperIds, clearComparePaperIds, setCompareModalOpen } = useStore()
 
   if (comparePaperIds.length === 0) return null
@@ -24,7 +27,7 @@ function FloatingCompareBar() {
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-brand-400 animate-ping" />
         <p className="text-xs font-semibold text-white">
-          {comparePaperIds.length} paper{comparePaperIds.length > 1 ? 's' : ''} selected for comparison
+          {comparePaperIds.length} paper{comparePaperIds.length > 1 ? 's' : ''} selected
         </p>
       </div>
 
@@ -41,7 +44,19 @@ function FloatingCompareBar() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
-          {canCompare ? 'Compare Now (2/2)' : `Select 1 More (${comparePaperIds.length}/2)`}
+          {canCompare ? 'Compare (2/2)' : `Select 1 More (${comparePaperIds.length}/2)`}
+        </button>
+
+        <button
+          onClick={onConnectClick}
+          disabled={!canCompare}
+          className={`text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+            canCompare
+              ? 'bg-gradient-to-r from-cyan-600 to-emerald-600 text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 cursor-pointer'
+              : 'bg-surface-700 text-slate-400 cursor-not-allowed border border-white/5'
+          }`}
+        >
+          🔗 Connect Papers
         </button>
 
         <button
@@ -56,7 +71,8 @@ function FloatingCompareBar() {
 }
 
 function App() {
-  const { page, setPage, activeProject } = useStore()
+  const { page, setPage, activeProject, comparePaperIds } = useStore()
+  const [connectModalOpen, setConnectModalOpen] = useState(false)
 
   // Redirect to projects page if no project is active
   useEffect(() => {
@@ -71,6 +87,8 @@ function App() {
       case 'upload':     return <UploadPage />
       case 'processing': return <ProcessingPage />
       case 'graph':      return <GraphPage />
+      case 'timeline':   return <TimelineView />
+      case 'authors':    return <AuthorNetworkView />
       case 'gaps':       return <GapsPage />
       case 'search':     return <SearchPage />
       case 'projects':   return <ProjectsPage />
@@ -83,11 +101,18 @@ function App() {
       <div className="min-h-screen relative">
         {page !== 'projects' && <Navbar />}
         <main>{renderPage()}</main>
-        <FloatingCompareBar />
+        <FloatingCompareBar onConnectClick={() => setConnectModalOpen(true)} />
         <CompareModal />
+        <LiteratureConnectorModal
+          paperIdA={comparePaperIds[0]}
+          paperIdB={comparePaperIds[1]}
+          isOpen={connectModalOpen}
+          onClose={() => setConnectModalOpen(false)}
+        />
       </div>
     </ToastProvider>
   )
 }
 
 export default App
+

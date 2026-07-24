@@ -5,10 +5,17 @@ from __future__ import annotations
 
 import logging
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from app.core.config import settings
 from app.core.claude_client import complete
-from app.models.schemas import GapAnalysisResponse, GapSuggestResponse, GapSuggestion
-from app.services import gap_finder, rag
+from app.models.schemas import (
+    GapAnalysisResponse,
+    GapSuggestResponse,
+    GapSuggestion,
+    ProposalPolishResponse,
+    ResearchProposal,
+)
+from app.services import gap_finder, rag, proposal_service, llm_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/gaps", tags=["gaps"])
@@ -91,12 +98,22 @@ Write a 2-3 sentence research opportunity statement explaining why combining {ga
                 f"Gap: {gap.method} has not been applied to {gap.domain} in the current corpus."
             )
 
+        clean_suggestion = suggestion_text.strip()
+
+        # Persist proposal record in SQLite
+        await proposal_service.create_or_get_proposal(
+            method=gap.method,
+            domain=gap.domain,
+            suggestion=clean_suggestion,
+            supporting_papers=supporting_papers[:5],
+        )
+
         suggestions.append(
             GapSuggestion(
                 method=gap.method,
                 domain=gap.domain,
                 score=gap.score,
-                suggestion=suggestion_text.strip(),
+                suggestion=clean_suggestion,
                 supporting_papers=supporting_papers[:5],
                 method_papers=method_papers[:5],
                 domain_papers=domain_papers[:5],
@@ -116,4 +133,72 @@ async def validate_gap_external(
         return await gap_finder.check_external_gap_validation(method=method, domain=domain)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gap validation failed: {e}")
+
+
+@router.post("/proposals/generate", response_model=ResearchProposal)
+async def generate_proposal(
+    method: str = Query(..., description="Method name"),
+    domain: str = Query(..., description="Domain name"),
+    suggestion: str = Query(default="", description="Optional suggestion text")
+):
+    """Generate or retrieve full research proposal blueprint for a gap."""
+    try:
+        return await proposal_service.create_or_get_proposal(
+            method=method,
+            domain=domain,
+            suggestion=suggestion,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed generating proposal: {e}")
+
+
+@router.get("/proposals/{id}", response_model=ResearchProposal)
+async def get_proposal_by_id(id: str):
+    """Retrieve existing proposal blueprint and cached polish status by ID."""
+    try:
+        prop = await proposal_service.get_proposal(id)
+        if not prop:
+            # Fallback parse ID into method/domain
+            parts = id.replace("prop_", "").split("_")
+            method = parts[0] if parts else "Method"
+            domain = parts[1] if len(parts) > 1 else "Domain"
+            prop = await proposal_service.create_or_get_proposal(method, domain)
+        return prop
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed retrieving proposal: {e}")
+
+
+@router.get("/proposals/{id}/stream")
+async def stream_proposal_draft(id: str):
+    """Stream token-by-token real-time proposal expansion using SSE."""
+    prop = await proposal_service.get_proposal(id)
+    if not prop:
+        parts = id.replace("prop_", "").split("_")
+        method = parts[0] if parts else "Method"
+        domain = parts[1] if len(parts) > 1 else "Domain"
+        prop = await proposal_service.create_or_get_proposal(method, domain)
+
+    prompt = f"Elaborate an in-depth academic methodology blueprint and hypothesis for combining {prop.method} with {prop.domain}."
+    return StreamingResponse(
+        llm_client.stream_generate(prompt, system_instruction="You are an expert AI scientific proposal writer."),
+        media_type="text/event-stream"
+    )
+
+
+@router.post("/proposals/{id}/polish", response_model=ProposalPolishResponse)
+async def polish_proposal_endpoint(id: str):
+    """
+    Run 3 LLM sub-passes on an existing proposal:
+    1. Academic Tone Pass (Problem Statement & Expected Contributions diffs)
+    2. Citation-Need Flagging (Scan claims, search ChromaDB)
+    3. Title Variant Generator (3 alternative titles with rationales)
+    Caches result alongside proposal record.
+    """
+    try:
+        return await proposal_service.polish_proposal(id)
+    except Exception as e:
+        logger.error(f"Proposal polish failed for {id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Proposal polish error: {e}")
+
+
 

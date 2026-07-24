@@ -69,11 +69,29 @@ function LogoIcon() {
   )
 }
 
+function TimelineIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function AuthorsIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',       icon: <DashboardIcon /> },
   { id: 'upload',      label: 'Upload Papers',   icon: <UploadIcon /> },
   { id: 'processing',  label: 'Processing',      icon: <ProcessingIcon /> },
   { id: 'graph',       label: 'Knowledge Graph', icon: <GraphIcon /> },
+  { id: 'timeline',    label: 'Timeline',        icon: <TimelineIcon /> },
+  { id: 'authors',     label: 'Author Network',  icon: <AuthorsIcon /> },
   { id: 'gaps',        label: 'Research Gaps',   icon: <GapsIcon /> },
   { id: 'search',      label: 'Search',          icon: <SearchIcon /> },
   { id: 'projects',    label: 'Projects',        icon: <ProjectsIcon /> },
@@ -94,20 +112,20 @@ export default function Navbar() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-surface-900/80 backdrop-blur-xl">
+      <div className="flex items-center justify-between px-3 lg:px-6 py-2.5 border-b border-white/5 bg-surface-900/90 backdrop-blur-xl gap-2">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-accent-purple flex items-center justify-center">
+        <div className="flex items-center gap-2.5 shrink-0 cursor-pointer" onClick={() => setPage('dashboard')}>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-accent-purple flex items-center justify-center shadow-md">
             <LogoIcon />
           </div>
-          <div>
-            <span className="font-display font-bold text-white text-lg leading-none">ResearchGap</span>
-            <span className="text-brand-400 font-bold text-lg"> AI</span>
+          <div className="hidden sm:block">
+            <span className="font-display font-bold text-white text-base lg:text-lg leading-none">ResearchGap</span>
+            <span className="text-brand-400 font-bold text-base lg:text-lg"> AI</span>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-0.5 lg:gap-1 overflow-x-auto no-scrollbar py-0.5">
           {NAV_ITEMS.map(item => {
             const isDisabled = !activeProject && item.id !== 'projects'
             return (
@@ -116,22 +134,22 @@ export default function Navbar() {
                 id={`nav-${item.id}`}
                 disabled={isDisabled}
                 onClick={() => setPage(item.id)}
-                className={`nav-link flex items-center gap-2 ${page === item.id ? 'active' : ''} ${
+                className={`nav-link ${page === item.id ? 'active' : ''} ${
                   isDisabled ? 'opacity-30 cursor-not-allowed hover:bg-transparent hover:text-slate-400' : ''
                 }`}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="shrink-0">{item.icon}</span>
+                <span className="whitespace-nowrap">{item.label}</span>
               </button>
             )
           })}
         </nav>
 
         {/* Right tools: Switcher + Health */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 lg:gap-3 shrink-0">
           {/* Project selection */}
-          <div className="flex items-center gap-1.5 bg-surface-600/40 px-3 py-1 rounded-xl border border-white/5">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Project:</span>
+          <div className="flex items-center gap-1.5 bg-surface-600/40 px-2.5 py-1 rounded-xl border border-white/5 max-w-[140px] sm:max-w-[180px]">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline shrink-0">Project:</span>
             <select
               value={activeProject || ''}
               onChange={(e) => {
@@ -140,7 +158,7 @@ export default function Navbar() {
                   window.location.reload()
                 }
               }}
-              className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer py-0.5 pr-1"
+              className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer py-0.5 pr-1 truncate w-full"
             >
               {!activeProject && <option value="" className="bg-surface-900 text-slate-400 text-xs">Select Project...</option>}
               {projects.length > 0 ? (
@@ -156,19 +174,20 @@ export default function Navbar() {
           </div>
 
           {/* Health indicator */}
-          <div className="flex items-center gap-2 text-xs">
+          <div className="hidden md:flex items-center gap-2 text-xs shrink-0 bg-surface-800/50 px-2.5 py-1 rounded-xl border border-white/5">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2 h-2 rounded-full shrink-0 ${
                 health?.neo4j === 'connected' ? 'bg-accent-green animate-pulse-slow' : 'bg-amber-400'
               }`}
+              title={health?.neo4j === 'connected' ? 'Neo4j Connected' : 'SQLite Fallback Active'}
             />
-            <span className="text-slate-400">
-              {health?.neo4j === 'connected' ? 'Neo4j connected' : 'Neo4j pending'}
+            <span className="text-slate-300 font-medium">
+              {health?.neo4j === 'connected' ? 'Neo4j' : 'SQLite'}
             </span>
             {health?.gemini_key_set && (
               <>
                 <span className="text-slate-600">·</span>
-                <span className="text-accent-green font-medium">Gemini Active</span>
+                <span className="text-accent-green font-medium">Gemini</span>
               </>
             )}
           </div>

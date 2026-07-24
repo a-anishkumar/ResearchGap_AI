@@ -115,34 +115,44 @@ Paper RAG Chunks:
 
 Generate a JSON object with EXACTLY the following keys:
 {{
-  "summary": "3-5 sentences summarizing the core problem, approach, and findings in plain language.",
-  "key_contributions": ["List of main scientific or technical contributions"],
-  "incremental_aspects": ["List of incremental improvements or minor modifications"],
-  "strengths": ["Methodology strengths"],
-  "weaknesses": ["Methodology limitations, missing baselines, or evaluation weaknesses"],
-  "gap_relation": "Detailed explanation of how this paper's methods and domains relate to the identified corpus research gaps.",
-  "followup_questions": ["3-4 concrete, insightful follow-up research questions a scientist should ask."]
+Methods: {methods}
+Domains: {domains}
+Datasets: {datasets}
+Extracted Results: {results}
+Context Chunks: {context_text}
+Corpus Research Gap Context: {gaps_str}
+
+Provide a JSON structured analysis matching PaperAnalysisResult schema:
+{{
+  "executive_summary": "2-3 sentences overview",
+  "core_innovations": ["innovation 1", "innovation 2"],
+  "methodology_analysis": "Detailed algorithmic analysis",
+  "empirical_evaluation": "Detailed metrics evaluation",
+  "limitations": ["limitation 1", "limitation 2"],
+  "gap_relevance": "How this relates to corpus research gaps",
+  "suggested_followups": ["follow-up 1", "follow-up 2"]
 }}
 """
 
     try:
-        raw_llm_resp = await complete(system_prompt, user_prompt, max_tokens=2048)
-        clean_json = _clean_json_string(raw_llm_resp)
-        analysis_dict = json.loads(clean_json)
+        analysis_obj = await llm_client.generate_structured(
+            prompt=user_prompt,
+            schema_cls=PaperAnalysisResult,
+            system_instruction=system_prompt,
+            endpoint="paper_analysis",
+            rag_chunks=chunks[:5] if chunks else None
+        )
+        analysis_dict = analysis_obj.model_dump()
     except Exception as e:
-        logger.error(f"LLM paper analysis generation failed for {paper_id}: {e}")
-        # Fallback structured response
+        logger.error(f"Structured analysis generation failed for {paper_id}: {e}")
         analysis_dict = {
-            "summary": f"This paper ({title}) addresses research challenges in {domains}. It employs methods such as {methods}.",
-            "key_contributions": [f"Integration of {methods} in {domains}"],
-            "incremental_aspects": ["Standard architectural adaptation to domain-specific datasets."],
-            "strengths": ["Clear problem formulation", "Extracted empirical evaluations"],
-            "weaknesses": ["Limited cross-domain generalizability evaluation"],
-            "gap_relation": f"Extends applications in {domains} using {methods}.",
-            "followup_questions": [
-                f"How well does {methods} generalize to unobserved domains?",
-                "What are the primary performance bottlenecks under extreme dataset distribution shifts?"
-            ]
+            "executive_summary": f"Analytical breakdown for {title}.",
+            "core_innovations": [f"Application of {methods}"],
+            "methodology_analysis": f"Utilizes {methods} within {domains}.",
+            "empirical_evaluation": f"Evaluated on {datasets}.",
+            "limitations": ["Requires further cross-domain testing."],
+            "gap_relevance": f"Relates to {gaps_str}.",
+            "suggested_followups": ["Extend methodology to unaddressed datasets."]
         }
 
     # 6. Cache analysis in SQLite
@@ -202,7 +212,7 @@ async def compare_papers(paper_id_a: str, paper_id_b: str) -> dict:
     system_prompt = (
         "You are an expert AI literature review engine. Compare two scientific papers side-by-side. "
         "Analyze technical overlaps, methodological divergences, performance results, and potential complementary synergies. "
-        "Output ONLY valid JSON without markdown code fences."
+        "Output ONLY valid JSON matching the requested schema."
     )
 
     user_prompt = f"""
@@ -229,28 +239,37 @@ Shared Methods: {', '.join(shared_methods) or 'None'}
 Shared Domains: {', '.join(shared_domains) or 'None'}
 Shared Datasets: {', '.join(shared_datasets) or 'None'}
 
-Generate a JSON object with EXACTLY the following structure:
+Generate a JSON object matching this schema:
 {{
-  "divergent_approaches": "Paragraph detailing how the two papers differ in problem formulation, algorithmic technique, or dataset focus.",
-  "performance_comparison": "Paragraph comparing reported metrics, benchmark results, or empirical strengths of each paper.",
-  "complementary_insights": "Paragraph proposing how techniques or domains from Paper A and Paper B could be combined into a novel research contribution.",
-  "verdict": "Complementary" | "Redundant" | "Unrelated despite surface similarity",
-  "verdict_rationale": "1-2 concise sentences justifying the verdict."
+  "summary_comparison": "Paragraph detailing how the two papers differ or overlap.",
+  "methodology_diff": "Paragraph comparing reported metrics, benchmark results, or empirical strengths.",
+  "dataset_evaluation_diff": "Paragraph analyzing dataset differences.",
+  "domain_applicability_diff": "Paragraph analyzing domain focus differences.",
+  "synergies_and_hybrids": "Paragraph proposing how techniques from Paper A and Paper B could be combined.",
+  "unexplored_gap_opportunity": "1-2 concise sentences identifying unexplored opportunities."
 }}
 """
 
     try:
-        raw_resp = await complete(system_prompt, user_prompt, max_tokens=1500)
-        clean_json = _clean_json_string(raw_resp)
-        llm_analysis = json.loads(clean_json)
+        from app.services import llm_client
+        from app.models.schemas import PaperCompareResult
+
+        compare_obj = await llm_client.generate_structured(
+            prompt=user_prompt,
+            schema_cls=PaperCompareResult,
+            system_instruction=system_prompt,
+            endpoint="paper_comparison"
+        )
+        llm_analysis = compare_obj.model_dump()
     except Exception as e:
         logger.error(f"LLM paper comparison failed for {paper_id_a} vs {paper_id_b}: {e}")
         llm_analysis = {
-            "divergent_approaches": f"Paper A focuses on {', '.join(paper_a.get('methods', [])) or 'method A'}, while Paper B utilizes {', '.join(paper_b.get('methods', [])) or 'method B'}.",
-            "performance_comparison": "Both papers present empirical results on their respective benchmark datasets.",
-            "complementary_insights": "Combining the methodology of Paper A with the application domain of Paper B could yield a promising hybrid approach.",
-            "verdict": "Complementary" if shared_domains or shared_methods else "Unrelated despite surface similarity",
-            "verdict_rationale": "The papers address overlapping subfields with distinct algorithmic strategies."
+            "summary_comparison": f"Paper A focuses on {', '.join(paper_a.get('methods', [])) or 'method A'}, while Paper B utilizes {', '.join(paper_b.get('methods', [])) or 'method B'}.",
+            "methodology_diff": "Both papers present empirical results on their respective benchmark datasets.",
+            "dataset_evaluation_diff": "Different benchmarks were utilized across the two papers.",
+            "domain_applicability_diff": "Applies to distinct application domains.",
+            "synergies_and_hybrids": "Combining the methodology of Paper A with the application domain of Paper B could yield a promising hybrid approach.",
+            "unexplored_gap_opportunity": "The papers address overlapping subfields with distinct algorithmic strategies."
         }
 
     return {

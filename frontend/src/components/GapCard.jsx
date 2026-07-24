@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useToast } from './Toast'
+import ProposalModal from './ProposalModal'
 
 // ── Icons (Clean Professional SVGs) ──────────────────────────────────────────
 function MethodIcon({ className = "w-4 h-4" }) {
@@ -152,6 +153,7 @@ function ScoreRing({ score, maxScore }) {
 export default function GapCard({ gap, rank, maxScore = 1 }) {
   const toast = useToast()
   const [expanded, setExpanded] = useState(rank <= 2)
+  const [showProposal, setShowProposal] = useState(false)
 
   const structured = parseStructuredSuggestion(gap.suggestion)
 
@@ -210,6 +212,10 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
       className={`glass-card overflow-hidden transition-all duration-300 animate-slide-up hover:border-brand-700/40 group`}
       style={{ animationDelay: `${(rank - 1) * 60}ms` }}
     >
+      {showProposal && (
+        <ProposalModal gap={gap} onClose={() => setShowProposal(false)} />
+      )}
+
       {/* ── Header ── */}
       <div className="p-5 pb-4">
         <div className="flex items-start gap-4">
@@ -266,6 +272,13 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
           {/* Actions */}
           <div className="flex flex-col items-end gap-2 shrink-0">
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowProposal(true)}
+                className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-amber-300 bg-amber-950/50 hover:bg-amber-900/70 border border-amber-700/40 transition-all flex items-center gap-1 shadow-glow-brand"
+                title="Open Research Proposal & Proposal Polish Generator"
+              >
+                <span>✨ Proposal & Polish</span>
+              </button>
               <button
                 onClick={handleVerifyArxiv}
                 disabled={validating}

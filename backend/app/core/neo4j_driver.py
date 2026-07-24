@@ -367,8 +367,14 @@ async def run_query(query: str, parameters: dict | None = None):
     if _use_local_sqlite:
         return run_query_sqlite(query, parameters)
 
-    driver = await get_driver()
-    async with driver.session() as session:
-        result = await session.run(query, parameters or {})
-        return await result.data()
+    try:
+        driver = await get_driver()
+        async with driver.session() as session:
+            result = await session.run(query, parameters or {})
+            return await result.data()
+    except Exception as e:
+        logger.warning(f"Neo4j query failed ({e}). Falling back to local SQLite database.")
+        _use_local_sqlite = True
+        return run_query_sqlite(query, parameters)
+
 

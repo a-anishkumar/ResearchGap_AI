@@ -321,7 +321,9 @@ async def get_entities() -> dict:
 async def get_all_papers() -> list[dict]:
     """Retrieve all papers and their properties/entities from Neo4j or SQLite fallback."""
     if neo4j_driver._use_local_sqlite:
-        conn = sqlite3.connect(neo4j_driver.sqlite_db_path)
+        from app.core.project import get_sqlite_db_path
+        db_path = get_sqlite_db_path()
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         try:
             cursor.execute("SELECT id, title, authors, year, filename FROM papers")

@@ -5,8 +5,16 @@ from __future__ import annotations
 
 import logging
 from fastapi import APIRouter, HTTPException, Query
-from app.models.schemas import GraphStats, GraphData
-from app.services import graph_builder
+from app.models.schemas import (
+    GraphStats,
+    GraphData,
+    TimelineResponse,
+    ConnectRequest,
+    ConnectResponse,
+    AuthorNetworkResponse,
+    AuthorDetailResponse,
+)
+from app.services import graph_builder, s2_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/graph", tags=["graph"])
@@ -30,6 +38,50 @@ async def graph_data():
         raise HTTPException(status_code=503, detail=f"Neo4j error: {e}")
 
 
+@router.get("/timeline", response_model=TimelineResponse)
+async def graph_timeline():
+    """Return publication year vs. Semantic Scholar citation counts timeline for all project papers."""
+    try:
+        items = await s2_service.get_timeline_data()
+        return TimelineResponse(papers=items)
+    except Exception as e:
+        logger.error(f"Failed fetching timeline data: {e}")
+        raise HTTPException(status_code=500, detail=f"Timeline fetch error: {e}")
+
+
+@router.post("/connect", response_model=ConnectResponse)
+async def graph_connect_papers(req: ConnectRequest):
+    """Find shortest citation path between two papers using Semantic Scholar BFS."""
+    try:
+        res = await s2_service.find_shortest_citation_path(req.paper_id_a, req.paper_id_b)
+        return ConnectResponse(**res)
+    except Exception as e:
+        logger.error(f"Failed connecting papers {req.paper_id_a} and {req.paper_id_b}: {e}")
+        raise HTTPException(status_code=500, detail=f"Paper connection error: {e}")
+
+
+@router.get("/authors", response_model=AuthorNetworkResponse)
+async def graph_author_network():
+    """Return co-authorship graph (nodes and links) across all project papers."""
+    try:
+        data = await s2_service.get_author_network()
+        return AuthorNetworkResponse(**data)
+    except Exception as e:
+        logger.error(f"Failed fetching author network: {e}")
+        raise HTTPException(status_code=500, detail=f"Author network error: {e}")
+
+
+@router.get("/authors/{name}", response_model=AuthorDetailResponse)
+async def graph_author_detail(name: str):
+    """Return author's project papers plus top 10 external papers from Semantic Scholar."""
+    try:
+        data = await s2_service.get_author_detail(name)
+        return AuthorDetailResponse(**data)
+    except Exception as e:
+        logger.error(f"Failed fetching detail for author '{name}': {e}")
+        raise HTTPException(status_code=500, detail=f"Author detail error: {e}")
+
+
 @router.get("/entities")
 async def graph_entities():
     """Return full entity lists (methods, domains, datasets, results, papers) with associations."""
@@ -37,6 +89,7 @@ async def graph_entities():
         return await graph_builder.get_entities()
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Entity fetch error: {e}")
+
 
 
 @router.get("/node/{node_id}")

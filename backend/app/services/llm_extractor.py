@@ -221,71 +221,33 @@ async def extract_paper(
                 )
                 ollama_draft = None
 
-        last_error: Exception | None = None
-        error_feedback: str | None = None
-        for attempt in range(1, 4):
-            try:
-                if ollama_draft:
-                    # Stage 2: Minimal Gemini call using the Ollama draft
-                    system_prompt = (
-                        "You are a structured extraction engine. Convert the raw local draft text into a valid JSON object matching the requested schema.\n"
-                        "No markdown fences, no explanation — just raw JSON.\n\n"
-                        "JSON Schema:\n"
-                        "{\n"
-                        '  "title": "string — full paper title",\n'
-                        '  "authors": ["string", ...],\n'
-                        '  "year": integer or null,\n'
-                        '  "methods": ["string", ...],\n'
-                        '  "domains": ["string", ...],\n'
-                        '  "datasets": ["string", ...],\n'
-                        '  "results": [\n'
-                        '    {"metric": "string", "value": "string", "description": "string"}\n'
-                        "  ]\n"
-                        "}"
-                    )
-                    user_prompt = (
-                        f"Convert the following local draft extraction into a valid JSON object:\n"
-                        f"---\n{ollama_draft}\n---\n\n"
-                    )
-                    if error_feedback:
-                        user_prompt += f"Previous error to fix: {error_feedback}\n"
-                    user_prompt += "Extract and return the JSON object."
-                else:
-                    # Direct LLM call with error feedback on retry
-                    system_prompt = _SYSTEM_PROMPT
-                    user_prompt = _build_user_prompt(extraction_text, filename, error_feedback)
+        # Use LLM Client with Output Reliability Layer
+        system_prompt = _SYSTEM_PROMPT
+        user_prompt = _build_user_prompt(extraction_text, filename)
 
-                raw = await complete(
-                    system=system_prompt,
-                    user=user_prompt,
-                    max_tokens=1048,
-                )
-                data = _parse_json_response(raw)
+        try:
+            from app.services import llm_client
+            extraction = await llm_client.generate_structured(
+                prompt=user_prompt,
+                schema_cls=PaperExtraction,
+                system_instruction=system_prompt,
+                endpoint="entity_extraction"
+            )
 
-                # Normalize before validation
-                if "methods" in data and isinstance(data["methods"], list):
-                    data["methods"] = normalize_list(data["methods"])
-                if "domains" in data and isinstance(data["domains"], list):
-                    data["domains"] = normalize_list(data["domains"])
-                if "datasets" in data and isinstance(data["datasets"], list):
-                    data["datasets"] = normalize_list(data["datasets"])
+            # Normalize names
+            extraction.methods = normalize_list(extraction.methods)
+            extraction.domains = normalize_list(extraction.domains)
+            extraction.datasets = normalize_list(extraction.datasets)
 
-                extraction = PaperExtraction(**data)
-                logger.info(
-                    f"Extracted from '{filename}': "
-                    f"{len(extraction.methods)} methods, "
-                    f"{len(extraction.domains)} domains, "
-                    f"{len(extraction.datasets)} datasets"
-                )
-                return extraction
+            logger.info(
+                f"Extracted from '{filename}': "
+                f"{len(extraction.methods)} methods, "
+                f"{len(extraction.domains)} domains, "
+                f"{len(extraction.datasets)} datasets"
+            )
+            return extraction
+        except Exception as e:
+            logger.error(f"Structured entity extraction failed for '{filename}': {e}")
+            return PaperExtraction(title=filename.replace(".pdf", ""))
 
-            except Exception as e:
-                last_error = e
-                error_feedback = str(e)
-                logger.warning(f"Attempt {attempt}/3 — extraction error for '{filename}': {e}")
-                await asyncio.sleep(0.5 * attempt)  # exponential backoff on error
-
-        # After 3 failures return a minimal extraction rather than crashing the batch
-        logger.error(f"All 3 extraction attempts failed for '{filename}': {last_error}")
-        return PaperExtraction(title=filename.replace(".pdf", ""))
 
