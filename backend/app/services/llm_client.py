@@ -148,24 +148,39 @@ def run_grounding_check(generated_text: str, rag_chunks: list[str]) -> list[Cita
 
 # ── Core Provider Invocation ────────────────────────────────────────────────
 
-async def _call_provider(provider: str, prompt: str, system_instruction: str | None = None) -> str:
+async def _call_provider(
+    provider: str,
+    prompt: str,
+    system_instruction: str | None = None,
+    json_mode: bool = False
+) -> str:
     """Execute raw prompt on specified provider."""
     if provider == "gemini":
         return await claude_client.complete(system=system_instruction or "You are a helpful AI research assistant.", user=prompt)
     elif provider == "ollama":
-        return await ollama_client.generate_ollama(prompt=prompt, system_instruction=system_instruction)
+        return await ollama_client.generate_ollama(
+            prompt=prompt,
+            system_instruction=system_instruction,
+            json_mode=json_mode
+        )
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
 
 def _get_provider_chain() -> list[str]:
-    """Return ordered list of available providers."""
+    """
+    Return ordered list of available providers.
+    If USE_OLLAMA=true is set in config/.env, Ollama is prioritized first.
+    """
     chain = []
-    # Gemini (or Claude API) is primary if key configured
-    if settings.gemini_api_key:
-        chain.append("gemini")
-    # Ollama is always available locally as fallback
-    chain.append("ollama")
+    if settings.use_ollama:
+        chain.append("ollama")
+        if settings.gemini_api_key:
+            chain.append("gemini")
+    else:
+        if settings.gemini_api_key:
+            chain.append("gemini")
+        chain.append("ollama")
     return chain
 
 
@@ -189,8 +204,8 @@ async def generate_structured(
         retry_count = 0
         raw_text = ""
         try:
-            # 1. Initial Attempt
-            raw_text = await _call_provider(provider, prompt, system_instruction)
+            # 1. Initial Attempt (Pass json_mode=True for native JSON enforcement on Ollama)
+            raw_text = await _call_provider(provider, prompt, system_instruction, json_mode=True)
             cleaned_text = _normalize_json_text(raw_text)
 
             try:
@@ -217,7 +232,7 @@ async def generate_structured(
                     f"Instructions: Fix ONLY the invalid or missing JSON fields. Return ONLY valid JSON matching the schema."
                 )
 
-                repair_text = await _call_provider(provider, repair_prompt, system_instruction)
+                repair_text = await _call_provider(provider, repair_prompt, system_instruction, json_mode=True)
                 cleaned_repair = _normalize_json_text(repair_text)
                 parsed_obj = schema_cls.model_validate_json(cleaned_repair)
 
@@ -252,15 +267,19 @@ async def stream_generate(prompt: str, system_instruction: str | None = None) ->
     primary = providers[0] if providers else "gemini"
 
     try:
-        # Fallback stream wrapper
-        full_response = await _call_provider(primary, prompt, system_instruction)
-        # Yield words in chunks to simulate token stream for SSE UI
-        words = full_response.split(" ")
-        for i in range(0, len(words), 3):
-            chunk = " ".join(words[i:i+3]) + " "
-            yield f"data: {json.dumps({'token': chunk})}\n\n"
-            await asyncio.sleep(0.03)
-        yield "data: [DONE]\n\n"
+        if primary == "ollama":
+            async for token in ollama_client.stream_ollama(prompt, system_instruction):
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            yield "data: [DONE]\n\n"
+        else:
+            # Fallback stream wrapper for Gemini
+            full_response = await _call_provider(primary, prompt, system_instruction)
+            words = full_response.split(" ")
+            for i in range(0, len(words), 3):
+                chunk = " ".join(words[i:i+3]) + " "
+                yield f"data: {json.dumps({'token': chunk})}\n\n"
+                await asyncio.sleep(0.03)
+            yield "data: [DONE]\n\n"
     except Exception as e:
         logger.error(f"Stream generation error on {primary}: {e}")
         yield f"data: {json.dumps({'error': str(e)})}\n\n"
