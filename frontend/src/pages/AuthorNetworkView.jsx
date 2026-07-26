@@ -69,8 +69,29 @@ export default function AuthorNetworkView() {
               <p className="text-sm text-slate-400">Building co-authorship network graph…</p>
             </div>
           ) : graphData.nodes.length === 0 ? (
-            <div className="w-full my-auto text-center py-20">
-              <p className="text-slate-400 text-sm">No author relationships found in current project. Upload papers to populate the network.</p>
+            <div className="w-full my-auto flex flex-col items-center justify-center py-16 px-8 text-center gap-5">
+              <div className="w-20 h-20 rounded-2xl bg-purple-950/40 border border-purple-800/30 flex items-center justify-center">
+                <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-white font-bold text-lg">No Co-Authorship Data Yet</h3>
+                <p className="text-slate-400 text-sm max-w-md">
+                  Author relationships are extracted when papers are processed. Upload papers with author metadata and run processing to populate this network.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-700/40 border border-white/5">
+                  <span className="text-brand-400 font-bold">1.</span> Upload academic PDFs
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-700/40 border border-white/5">
+                  <span className="text-brand-400 font-bold">2.</span> Run AI processing
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-700/40 border border-white/5">
+                  <span className="text-brand-400 font-bold">3.</span> Return here to explore network
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex-1 relative">

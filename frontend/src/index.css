@@ -269,3 +269,30 @@
   border-radius: 1px;
   vertical-align: middle;
 }
+
+/* Custom border opacity utilities */
+.border-white\/8  { border-color: rgba(255,255,255,0.08); }
+.border-white\/12 { border-color: rgba(255,255,255,0.12); }
+
+/* Navbar analytics dropdown */
+.nav-dropdown {
+  transform-origin: top left;
+}
+
+/* Workflow step button */
+.workflow-step-done {
+  background: rgba(6, 78, 59, 0.3);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
+/* Smooth box shadow on quick-action card hover */
+.quick-action-card:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* Improved tooltip */
+[title]:hover::after {
+  content: none; /* override browser default, use custom tooltips */
+}
+

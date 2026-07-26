@@ -136,19 +136,23 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="min-h-screen mesh-bg pt-20 px-6 py-12">
+    <div className="min-h-screen mesh-bg pt-20 px-6 py-10">
       <div className="max-w-4xl mx-auto">
         
         {/* Header */}
-        <div className="mb-10 animate-fade-in flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-2">
-              Research Projects
-            </h1>
-            <p className="text-slate-400 text-sm md:text-base">
-              Organize your research papers into isolated workspace projects to analyze them separately.
-            </p>
+        <div className="mb-10 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-950/60 border border-brand-800/40 text-brand-300 text-xs font-semibold mb-4">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            Workspace Manager
           </div>
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-2">
+            Research Projects
+          </h1>
+          <p className="text-slate-400 text-sm md:text-base max-w-xl">
+            Organize your research papers into isolated workspace projects to analyze them separately.
+          </p>
         </div>
 
         {/* Create new project widget */}

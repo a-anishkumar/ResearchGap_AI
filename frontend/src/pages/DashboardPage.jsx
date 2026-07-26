@@ -111,10 +111,18 @@ const STAT_CARDS = [
 ]
 
 const QUICK_ACTIONS = [
-  { page: 'upload',     label: 'Upload New Papers', icon: <PaperIcon />, desc: 'Add more PDFs to your corpus', color: 'from-brand-600 to-brand-500' },
-  { page: 'graph',      label: 'Knowledge Graph',   icon: <GraphIcon />, desc: 'Explore method & domain links', color: 'from-purple-600 to-purple-500' },
-  { page: 'gaps',       label: 'Research Gaps',     icon: <GapsIcon />,  desc: 'Discover unexplored opportunities', color: 'from-cyan-600 to-cyan-500' },
-  { page: 'search',     label: 'Search Papers',     icon: <SearchIcon />, desc: 'Ask questions about your corpus', color: 'from-amber-600 to-amber-500' },
+  { page: 'upload',     label: 'Upload Papers',     icon: <PaperIcon />, desc: 'Add PDFs to your corpus', color: 'from-brand-600 to-brand-500',   glow: 'rgba(97,114,243,0.15)' },
+  { page: 'graph',      label: 'Knowledge Graph',   icon: <GraphIcon />, desc: 'Explore method & domain links', color: 'from-purple-600 to-purple-500', glow: 'rgba(167,139,250,0.15)' },
+  { page: 'gaps',       label: 'Research Gaps',     icon: <GapsIcon />,  desc: 'Discover research opportunities', color: 'from-cyan-600 to-cyan-500',   glow: 'rgba(34,211,238,0.12)' },
+  { page: 'search',     label: 'Semantic Search',   icon: <SearchIcon />, desc: 'Chat with your paper corpus', color: 'from-amber-600 to-amber-500',  glow: 'rgba(251,191,36,0.12)' },
+]
+
+// Workflow steps for the progress guide
+const WORKFLOW_STEPS = [
+  { label: 'Upload Papers',  page: 'upload',     icon: '📄' },
+  { label: 'AI Processing',  page: 'processing', icon: '⚙️' },
+  { label: 'Explore Graph',  page: 'graph',      icon: '🔗' },
+  { label: 'Find Gaps',      page: 'gaps',       icon: '🔍' },
 ]
 
 export default function DashboardPage() {
@@ -144,26 +152,61 @@ export default function DashboardPage() {
   const processingPapers = papers.filter(p => p.stage !== 'done' && p.stage !== 'error')
 
   return (
-    <div className="min-h-screen mesh-bg pt-20 px-6 py-12">
+    <div className="min-h-screen mesh-bg pt-20 px-6 py-10">
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
-        <div className="mb-10 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display font-bold text-4xl text-white mb-2">
-                Welcome to <span className="bg-gradient-to-r from-brand-400 via-accent-purple to-accent-cyan bg-clip-text text-transparent">ResearchGap AI</span>
-              </h1>
-              <p className="text-slate-400 text-lg">Your AI-powered research gap discovery engine</p>
-            </div>
-            <button
-              onClick={refresh}
-              disabled={loading}
-              className="btn-secondary text-xs flex items-center gap-1.5"
-            >
-              <RefreshIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Refreshing…' : 'Refresh'}
-            </button>
+        <div className="mb-8 animate-fade-in flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display font-bold text-3xl md:text-4xl text-white mb-1.5">
+              Welcome to <span className="bg-gradient-to-r from-brand-400 via-accent-purple to-accent-cyan bg-clip-text text-transparent">ResearchGap AI</span>
+            </h1>
+            <p className="text-slate-400">Your AI-powered research gap discovery engine</p>
+          </div>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="btn-secondary text-xs flex items-center gap-1.5 shrink-0"
+          >
+            <RefreshIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+
+        {/* Workflow Steps */}
+        <div className="glass-card p-4 mb-8 animate-slide-up">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3">Research Workflow</p>
+          <div className="flex items-center gap-2">
+            {WORKFLOW_STEPS.map((step, i) => {
+              const isDone = i === 0
+                ? papers.length > 0
+                : i === 1
+                ? donePapers.length > 0
+                : i === 2
+                ? (graphStats?.papers ?? 0) > 0
+                : false
+              return (
+                <div key={step.page} className="flex items-center gap-2 flex-1 min-w-0">
+                  <button
+                    onClick={() => setPage(step.page)}
+                    className={`flex flex-col sm:flex-row items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all w-full text-center sm:text-left
+                      ${ isDone
+                        ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-950/50'
+                        : 'border-white/8 bg-surface-700/40 text-slate-400 hover:text-white hover:bg-surface-600/50'
+                      }`}
+                  >
+                    <span className="text-base sm:text-sm">{step.icon}</span>
+                    <span className="leading-snug">{step.label}</span>
+                    {isDone && <span className="sm:ml-auto text-emerald-400 text-[10px] font-bold">✓</span>}
+                  </button>
+                  {i < WORKFLOW_STEPS.length - 1 && (
+                    <svg className="w-3 h-3 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -212,19 +255,30 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="lg:col-span-2">
-            <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-3">
-              {QUICK_ACTIONS.map(action => (
+              {QUICK_ACTIONS.map((action, i) => (
                 <button
                   key={action.page}
                   onClick={() => setPage(action.page)}
-                  className="glass-card p-5 text-left hover:border-white/10 hover:scale-[1.02] transition-all duration-200 group"
+                  className="glass-card p-5 text-left border border-white/5 hover:border-white/12 hover:scale-[1.02] transition-all duration-200 group relative overflow-hidden animate-slide-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white mb-3 group-hover:scale-110 transition-transform duration-200`}>
-                    {action.icon}
+                  {/* Hover glow */}
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
+                    style={{ background: `radial-gradient(ellipse at 20% 50%, ${action.glow} 0%, transparent 70%)` }}
+                  />
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-200 shadow-md`}>
+                      {action.icon}
+                    </div>
+                    <svg className="w-4 h-4 text-slate-600 group-hover:text-slate-300 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
-                  <p className="text-sm font-semibold text-white mb-1">{action.label}</p>
-                  <p className="text-xs text-slate-500">{action.desc}</p>
+                  <p className="text-sm font-semibold text-white mb-0.5">{action.label}</p>
+                  <p className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">{action.desc}</p>
                 </button>
               ))}
             </div>

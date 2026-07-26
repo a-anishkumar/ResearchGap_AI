@@ -13,7 +13,7 @@ import CompareModal from './components/CompareModal'
 import LiteratureConnectorModal from './components/LiteratureConnectorModal'
 import { ToastProvider } from './components/Toast'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 function FloatingCompareBar({ onConnectClick }) {
   const { comparePaperIds, clearComparePaperIds, setCompareModalOpen } = useStore()
@@ -23,7 +23,7 @@ function FloatingCompareBar({ onConnectClick }) {
   const canCompare = comparePaperIds.length === 2
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface-900/90 border border-brand-500/40 backdrop-blur-md rounded-2xl px-5 py-3 shadow-2xl flex items-center gap-4 animate-slide-up">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface-900/95 border border-brand-500/40 backdrop-blur-md rounded-2xl px-5 py-3 shadow-2xl flex items-center gap-4 animate-slide-up">
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-brand-400 animate-ping" />
         <p className="text-xs font-semibold text-white">
@@ -70,6 +70,39 @@ function FloatingCompareBar({ onConnectClick }) {
   )
 }
 
+// Animated page wrapper — re-mounts on page change for fade-in
+function PageTransition({ pageKey, children }) {
+  const [visible, setVisible] = useState(false)
+  const prev = useRef(pageKey)
+  const [content, setContent] = useState(children)
+
+  useEffect(() => {
+    if (prev.current !== pageKey) {
+      setVisible(false)
+      const t = setTimeout(() => {
+        setContent(children)
+        setVisible(true)
+        prev.current = pageKey
+      }, 80)
+      return () => clearTimeout(t)
+    } else {
+      setVisible(true)
+    }
+  }, [pageKey, children])
+
+  return (
+    <div
+      className="transition-all duration-200"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(6px)',
+      }}
+    >
+      {content}
+    </div>
+  )
+}
+
 function App() {
   const { page, setPage, activeProject, comparePaperIds } = useStore()
   const [connectModalOpen, setConnectModalOpen] = useState(false)
@@ -99,8 +132,12 @@ function App() {
   return (
     <ToastProvider>
       <div className="min-h-screen relative">
-        {page !== 'projects' && <Navbar />}
-        <main>{renderPage()}</main>
+        <Navbar />
+        <main>
+          <PageTransition pageKey={page}>
+            {renderPage()}
+          </PageTransition>
+        </main>
         <FloatingCompareBar onConnectClick={() => setConnectModalOpen(true)} />
         <CompareModal />
         <LiteratureConnectorModal
