@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import uuid
 import asyncio
+import hashlib
 import logging
+from difflib import SequenceMatcher
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -104,6 +106,7 @@ async def upload_papers(
 
     papers: list[PaperMeta] = []
     max_bytes = settings.max_upload_mb * 1024 * 1024
+    current_proj = get_project_name()
 
     for upload in files:
         if not upload.filename or not upload.filename.lower().endswith(".pdf"):
@@ -116,6 +119,39 @@ async def upload_papers(
                 detail=f"{upload.filename} exceeds {settings.max_upload_mb}MB limit",
             )
 
+        # ── Duplicate Detection ────────────────────────────────────────────────
+        file_hash = hashlib.sha256(content).hexdigest()
+
+        # Check for exact duplicate by hash (same bytes)
+        for existing_state in processing_states.values():
+            if existing_state.project == current_proj and existing_state.sha256 == file_hash:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "duplicate",
+                        "message": f"Duplicate detected: '{upload.filename}' is identical to already-uploaded '{existing_state.filename}'.",
+                        "existing_paper_id": existing_state.paper_id,
+                        "existing_filename": existing_state.filename,
+                    },
+                )
+
+        # Check near-duplicate by filename similarity (fast check before LLM extraction)
+        near_dup_warning = None
+        clean_name = upload.filename.lower().replace(".pdf", "").replace("_", " ").replace("-", " ")
+        for existing_state in processing_states.values():
+            if existing_state.project == current_proj and existing_state.sha256 != file_hash:
+                existing_clean = existing_state.filename.lower().replace(".pdf", "").replace("_", " ").replace("-", " ")
+                ratio = SequenceMatcher(None, clean_name, existing_clean).ratio()
+                if ratio > 0.85:
+                    near_dup_warning = {
+                        "warning": "near_duplicate",
+                        "message": f"Near-duplicate detected: '{upload.filename}' looks very similar to '{existing_state.filename}'.",
+                        "similar_to": existing_state.filename,
+                        "similarity": round(ratio, 2),
+                    }
+                    break
+        # ──────────────────────────────────────────────────────────
+
         paper_id = str(uuid.uuid4())
         save_path = raw_dir / f"{paper_id}.pdf"
         save_path.write_bytes(content)
@@ -125,20 +161,30 @@ async def upload_papers(
             filename=upload.filename,
             stage="uploaded",
             progress=5,
-            project=get_project_name()
+            project=current_proj,
+            sha256=file_hash,
         )
         set_state(state)
 
         background_tasks.add_task(_run_pipeline, paper_id, save_path, upload.filename)
 
-        papers.append(
-            PaperMeta(
-                paper_id=paper_id,
-                filename=upload.filename,
-                page_count=0,
-                status="uploaded",
-            )
+        paper_meta = PaperMeta(
+            paper_id=paper_id,
+            filename=upload.filename,
+            page_count=0,
+            status="uploaded",
         )
+        if near_dup_warning:
+            papers.append(paper_meta)
+            # Return early with warning for this file embedded in meta
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "papers": [paper_meta.model_dump()],
+                    "near_duplicate_warning": near_dup_warning,
+                },
+            )
+        papers.append(paper_meta)
 
     return UploadResponse(papers=papers)
 

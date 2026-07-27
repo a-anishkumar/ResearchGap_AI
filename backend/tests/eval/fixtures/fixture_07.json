@@ -1,0 +1,28 @@
+{
+  "filename": "rl_robotics.pdf",
+  "title": "Deep RL for Robotic Manipulation",
+  "authors": [
+    "Priya Singh"
+  ],
+  "year": 2023,
+  "methods": [
+    "Reinforcement Learning",
+    "Deep Q-Network",
+    "Policy Gradient"
+  ],
+  "domains": [
+    "Robotics",
+    "Control Systems"
+  ],
+  "datasets": [
+    "OpenAI Gym",
+    "MuJoCo"
+  ],
+  "results": [
+    {
+      "metric": "Success Rate",
+      "value": "87%",
+      "description": "Task completion"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "filename": "random_forest_healthcare.pdf",
+  "title": "Random Forest for Healthcare Tabular Data",
+  "authors": [
+    "Sarah Kim"
+  ],
+  "year": 2019,
+  "methods": [
+    "Random Forest",
+    "Ensemble Learning",
+    "Feature Selection"
+  ],
+  "domains": [
+    "Healthcare AI",
+    "Predictive Modeling"
+  ],
+  "datasets": [
+    "MIMIC-III",
+    "PhysioNet"
+  ],
+  "results": [
+    {
+      "metric": "AUC",
+      "value": "0.91",
+      "description": "Mortality AUC"
+    }
+  ]
+}

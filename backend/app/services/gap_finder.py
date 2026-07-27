@@ -68,6 +68,52 @@ async def get_papers_for_domain(domain: str) -> list[str]:
     return [r["title"] for r in rows]
 
 
+async def get_papers_for_method_ids(method: str) -> list[dict]:
+    """Return list of {paper_id, title} for papers using the given method."""
+    rows = await run_query(
+        """
+        MATCH (p:Paper)-[:USES_METHOD]->(m:Method {name: $method})
+        RETURN p.paper_id AS paper_id, p.title AS title
+        """,
+        {"method": method},
+    )
+    return [{"paper_id": r["paper_id"] or "", "title": r["title"] or ""} for r in rows]
+
+
+async def get_papers_for_domain_ids(domain: str) -> list[dict]:
+    """Return list of {paper_id, title} for papers in the given domain."""
+    rows = await run_query(
+        """
+        MATCH (p:Paper)-[:APPLIES_TO_DOMAIN]->(d:Domain {name: $domain})
+        RETURN p.paper_id AS paper_id, p.title AS title
+        """,
+        {"domain": domain},
+    )
+    return [{"paper_id": r["paper_id"] or "", "title": r["title"] or ""} for r in rows]
+
+
+async def get_evidence_trail(method: str, domain: str) -> dict:
+    """
+    Compute the evidence trail for a gap:
+      - method_only:  papers using the method but NOT in the domain
+      - domain_only:  papers in the domain but NOT using the method
+      (overlap would mean the gap is already filled, so we skip it)
+    """
+    method_papers = await get_papers_for_method_ids(method)
+    domain_papers = await get_papers_for_domain_ids(domain)
+
+    method_ids = {p["paper_id"] for p in method_papers if p["paper_id"]}
+    domain_ids = {p["paper_id"] for p in domain_papers if p["paper_id"]}
+
+    method_only = [p for p in method_papers if p["paper_id"] not in domain_ids]
+    domain_only = [p for p in domain_papers if p["paper_id"] not in method_ids]
+
+    return {
+        "method_only": method_only,
+        "domain_only": domain_only,
+    }
+
+
 import httpx
 import xml.etree.ElementTree as ET
 import urllib.parse

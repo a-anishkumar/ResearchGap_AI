@@ -1,0 +1,27 @@
+{
+  "filename": "cnn_medical_imaging.pdf",
+  "title": "Deep CNN for Medical Image Classification",
+  "authors": [
+    "Carlos Rodriguez"
+  ],
+  "year": 2022,
+  "methods": [
+    "CNN",
+    "ResNet",
+    "Transfer Learning"
+  ],
+  "domains": [
+    "Medical Imaging",
+    "Computer Vision"
+  ],
+  "datasets": [
+    "ChestX-ray14"
+  ],
+  "results": [
+    {
+      "metric": "AUC",
+      "value": "0.95",
+      "description": "ROC AUC"
+    }
+  ]
+}

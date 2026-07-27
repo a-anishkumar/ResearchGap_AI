@@ -1,0 +1,29 @@
+{
+  "filename": "bert_text_classification.pdf",
+  "title": "Fine-Tuning BERT for Text Classification",
+  "authors": [
+    "John Smith",
+    "Jane Doe"
+  ],
+  "year": 2021,
+  "methods": [
+    "BERT",
+    "Fine-Tuning",
+    "Transformer"
+  ],
+  "domains": [
+    "NLP",
+    "Text Classification"
+  ],
+  "datasets": [
+    "SST-2",
+    "IMDb"
+  ],
+  "results": [
+    {
+      "metric": "Accuracy",
+      "value": "93.5%",
+      "description": "On SST-2 test set"
+    }
+  ]
+}

@@ -30,6 +30,7 @@ export default function ProposalModal({ gap, onClose }) {
   const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [polishing, setPolishing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [proposal, setProposal] = useState(null)
   const [polishData, setPolishData] = useState(null)
 
@@ -132,6 +133,40 @@ export default function ProposalModal({ gap, onClose }) {
     }
   }
 
+  // Export proposal as PDF
+  const handleExportPdf = async () => {
+    if (!proposal?.id) {
+      toast?.error('Proposal not loaded yet. Please wait.')
+      return
+    }
+    setExporting(true)
+    try {
+      const response = await fetch(`/api/gaps/proposals/${proposal.id}/export`, {
+        method: 'GET',
+        headers: { 'X-Project-Name': localStorage.getItem('currentProject') || 'default' },
+      })
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.detail || 'Export failed')
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const safeName = (proposal.title || `${gap.method}_${gap.domain}`).replace(/[^a-z0-9]/gi, '_').slice(0, 60)
+      a.href = url
+      a.download = `proposal_${safeName}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast?.success('PDF downloaded!')
+    } catch (e) {
+      toast?.error(`PDF export failed: ${e.message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
       <div className="glass-card w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-brand-500/30">
@@ -159,6 +194,24 @@ export default function ProposalModal({ gap, onClose }) {
             >
               <SparklesIcon className="w-4 h-4 text-amber-300 animate-spin-slow" />
               {polishing ? 'Running 3 Polish Passes…' : polishData ? 'Re-Polish Proposal' : '✨ Polish Proposal'}
+            </button>
+            <button
+              onClick={handleExportPdf}
+              disabled={exporting || loading || !proposal}
+              title="Export proposal as PDF"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-500/40 text-brand-400 hover:bg-brand-900/30 hover:text-brand-300 transition-all duration-150 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {exporting ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
+              {exporting ? 'Exporting…' : 'Export PDF'}
             </button>
             <button
               onClick={onClose}

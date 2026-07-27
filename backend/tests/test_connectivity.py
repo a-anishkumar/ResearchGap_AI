@@ -6,7 +6,10 @@ import os
 # Add app to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-async def test():
+import pytest
+
+@pytest.mark.asyncio
+async def test_neo4j_connectivity():
     from app.core.config import settings
     print(f"Neo4j URI: {settings.neo4j_uri}")
     print(f"Gemini key set: {bool(settings.gemini_api_key)}")
@@ -19,5 +22,6 @@ async def test():
         print(f"[ERROR] Neo4j error: {e}")
         print("   → Check your NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD in .env")
 
-asyncio.run(test())
+if __name__ == "__main__":
+    asyncio.run(test_neo4j_connectivity())
 

@@ -159,3 +159,45 @@ async def health():
         "chromadb_docs": chroma_docs,
         "gemini_key_set": bool(settings.gemini_api_key),
     }
+
+
+@app.get("/api/health/extraction-stats")
+async def extraction_stats():
+    """
+    Return extraction pipeline reliability statistics.
+    Includes in-memory counters (since last restart) and DB totals from llm_call_log.
+    """
+    from app.services.llm_client import get_extraction_stats
+    memory_stats = get_extraction_stats()
+
+    # Also read totals from the persistent llm_call_log table
+    db_stats = {"db_total": 0, "db_success": 0, "db_failed": 0, "db_repairs": 0}
+    try:
+        import sqlite3
+        from app.core.project import get_sqlite_db_path
+        db_path = get_sqlite_db_path()
+        if db_path.exists():
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM llm_call_log")
+            db_stats["db_total"] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM llm_call_log WHERE success=1")
+            db_stats["db_success"] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM llm_call_log WHERE success=0")
+            db_stats["db_failed"] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM llm_call_log WHERE retry_count > 0 AND success=1")
+            db_stats["db_repairs"] = cursor.fetchone()[0]
+            conn.close()
+    except Exception:
+        pass
+
+    return {
+        "memory_stats": memory_stats,
+        "db_stats": db_stats,
+        "description": {
+            "total": "Total structured generation calls since last restart",
+            "pass_first_attempt": "Calls that validated on first attempt",
+            "repaired": "Calls that needed 1-pass repair to succeed",
+            "failed": "Calls that failed after all retries",
+        },
+    }

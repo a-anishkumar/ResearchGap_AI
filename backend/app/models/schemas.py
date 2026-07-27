@@ -18,6 +18,11 @@ class PaperExtraction(BaseModel):
     domains: list[str] = Field(default_factory=list)
     datasets: list[str] = Field(default_factory=list)
     results: list[ResultItem] = Field(default_factory=list)
+    # Per-field confidence scores (0-1), populated after extraction
+    confidence: dict[str, float] = Field(
+        default_factory=dict,
+        description="Confidence scores for extracted fields (methods, domains, datasets)"
+    )
 
 
 # ── Upload / processing ───────────────────────────────────────────────────────
@@ -76,6 +81,18 @@ class GraphStats(BaseModel):
 
 # ── Gap analysis ──────────────────────────────────────────────────────────────
 
+# ── Gap evidence trail ──────────────────────────────────────────────────────
+
+class EvidencePaper(BaseModel):
+    paper_id: str
+    title: str
+
+
+class EvidenceTrail(BaseModel):
+    method_only: list[EvidencePaper] = Field(default_factory=list)
+    domain_only: list[EvidencePaper] = Field(default_factory=list)
+
+
 class GapCandidate(BaseModel):
     method: str
     domain: str
@@ -92,6 +109,7 @@ class GapSuggestion(BaseModel):
     supporting_papers: list[str]  # paper titles used as RAG context
     method_papers: list[str]      # papers that use this method
     domain_papers: list[str]      # papers that cover this domain
+    evidence_papers: Optional[EvidenceTrail] = None  # paper_id level evidence trail
 
 
 class GapAnalysisResponse(BaseModel):
@@ -115,6 +133,7 @@ class ProcessingState(BaseModel):
     error: Optional[str] = None
     extraction: Optional[PaperExtraction] = None
     project: str = "default"
+    sha256: Optional[str] = None  # SHA-256 hash of PDF content for duplicate detection
 
 
 # ── Proposal Polish ──────────────────────────────────────────────────────────

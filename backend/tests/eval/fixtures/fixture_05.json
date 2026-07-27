@@ -1,0 +1,28 @@
+{
+  "filename": "gpt3_fewshot.pdf",
+  "title": "GPT-3 Language Models as Few-Shot Learners",
+  "authors": [
+    "Tom Brown"
+  ],
+  "year": 2020,
+  "methods": [
+    "GPT-3",
+    "Few-Shot Learning",
+    "Language Model"
+  ],
+  "domains": [
+    "NLP",
+    "Few-Shot Learning"
+  ],
+  "datasets": [
+    "SuperGLUE",
+    "TriviaQA"
+  ],
+  "results": [
+    {
+      "metric": "Accuracy",
+      "value": "88.6%",
+      "description": "SuperGLUE benchmark"
+    }
+  ]
+}

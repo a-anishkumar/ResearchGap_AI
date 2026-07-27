@@ -1,0 +1,28 @@
+{
+  "filename": "biobert_ner.pdf",
+  "title": "BioBERT for Biomedical Named Entity Recognition",
+  "authors": [
+    "James Lee"
+  ],
+  "year": 2020,
+  "methods": [
+    "BERT",
+    "BioBERT",
+    "NER"
+  ],
+  "domains": [
+    "Biomedical NLP",
+    "Clinical NLP"
+  ],
+  "datasets": [
+    "BC5CDR",
+    "NCBI Disease"
+  ],
+  "results": [
+    {
+      "metric": "F1",
+      "value": "0.892",
+      "description": "NER F1"
+    }
+  ]
+}

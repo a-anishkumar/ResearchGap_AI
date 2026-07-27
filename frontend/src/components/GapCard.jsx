@@ -60,6 +60,82 @@ function SectionIcon({ type, className = "w-5 h-5" }) {
   }
 }
 
+// ── Evidence Trail Panel ──────────────────────────────────────────────────────
+function EvidenceTrailPanel({ evidence, method, domain }) {
+  const [expanded, setExpanded] = useState(false)
+  const methodOnly = evidence?.method_only || []
+  const domainOnly = evidence?.domain_only || []
+  const totalCount = methodOnly.length + domainOnly.length
+  if (totalCount === 0) return null
+
+  return (
+    <div className="px-5 pb-4">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 hover:text-brand-300 transition-colors"
+      >
+        <svg
+          className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        Evidence Trail
+        <span className="ml-1 bg-brand-900/60 border border-brand-700/40 text-brand-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          {totalCount} papers
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {methodOnly.length > 0 && (
+            <div className="bg-brand-950/40 rounded-xl p-3 border border-brand-800/30">
+              <p className="text-[10px] font-bold text-brand-400 uppercase tracking-widest mb-2">
+                Method-only papers using &laquo;{method}&raquo;
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {methodOnly.slice(0, 8).map((p, i) => (
+                  <span
+                    key={i}
+                    title={`${p.title} (ID: ${p.paper_id})`}
+                    className="text-[10px] bg-brand-900/60 border border-brand-700/40 text-brand-300 rounded-full px-2 py-0.5 cursor-default hover:bg-brand-800/60 transition-colors max-w-[120px] truncate"
+                  >
+                    {p.title || p.paper_id}
+                  </span>
+                ))}
+                {methodOnly.length > 8 && (
+                  <span className="text-[10px] text-slate-500">+{methodOnly.length - 8} more</span>
+                )}
+              </div>
+            </div>
+          )}
+          {domainOnly.length > 0 && (
+            <div className="bg-cyan-950/40 rounded-xl p-3 border border-cyan-800/30">
+              <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-2">
+                Domain-only papers in &laquo;{domain}&raquo;
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {domainOnly.slice(0, 8).map((p, i) => (
+                  <span
+                    key={i}
+                    title={`${p.title} (ID: ${p.paper_id})`}
+                    className="text-[10px] bg-cyan-900/60 border border-cyan-700/40 text-cyan-300 rounded-full px-2 py-0.5 cursor-default hover:bg-cyan-800/60 transition-colors max-w-[120px] truncate"
+                  >
+                    {p.title || p.paper_id}
+                  </span>
+                ))}
+                {domainOnly.length > 8 && (
+                  <span className="text-[10px] text-slate-500">+{domainOnly.length - 8} more</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Parse structured bullet output from the AI ──────────────────────────────
 function parseStructuredSuggestion(text) {
   if (!text) return null
@@ -362,9 +438,9 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
             </div>
           )}
 
-          {/* Evidence grid */}
+          {/* Evidence grid — title-level (existing) */}
           {(gap.method_papers?.length > 0 || gap.domain_papers?.length > 0) && (
-            <div className="grid grid-cols-2 gap-4 px-5 pb-5">
+            <div className="grid grid-cols-2 gap-4 px-5 pb-3">
               {gap.method_papers?.length > 0 && (
                 <div className="bg-surface-700/40 rounded-xl p-3 border border-white/5">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
@@ -392,6 +468,11 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Evidence Trail — paper_id level (new) */}
+          {gap.evidence_papers && (gap.evidence_papers.method_only?.length > 0 || gap.evidence_papers.domain_only?.length > 0) && (
+            <EvidenceTrailPanel evidence={gap.evidence_papers} method={gap.method} domain={gap.domain} />
           )}
         </div>
       )}

@@ -9,6 +9,7 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState(null)
+  const [nearDupWarning, setNearDupWarning] = useState(null)
 
   const onDrop = useCallback(accepted => {
     const pdfs = accepted.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
@@ -17,6 +18,7 @@ export default function UploadPage() {
       return [...prev, ...pdfs.filter(f => !names.has(f.name))]
     })
     setError(null)
+    setNearDupWarning(null)
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -31,14 +33,29 @@ export default function UploadPage() {
     if (!files.length) return
     setUploading(true)
     setError(null)
+    setNearDupWarning(null)
     try {
-      const { data } = await uploadPapers(files, (e) => {
+      const { data, status } = await uploadPapers(files, (e) => {
         setUploadProgress(Math.round((e.loaded / e.total) * 100))
       })
-      setPapers(data.papers)
-      setPage('processing')
+
+      // Handle near-duplicate warning (202 response)
+      if (data?.near_duplicate_warning) {
+        setNearDupWarning(data.near_duplicate_warning)
+      }
+
+      if (data?.papers) {
+        setPapers(data.papers)
+        setPage('processing')
+      }
     } catch (e) {
-      setError(e?.response?.data?.detail || e.message || 'Upload failed')
+      const detail = e?.response?.data?.detail
+      // Handle exact duplicate (409)
+      if (e?.response?.status === 409 && detail?.error === 'duplicate') {
+        setError(`⛔ Duplicate detected: "${detail.message || 'This PDF was already uploaded.'}"`)
+      } else {
+        setError(detail?.message || detail || e.message || 'Upload failed')
+      }
     } finally {
       setUploading(false)
     }
@@ -149,6 +166,19 @@ export default function UploadPage() {
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
+          </div>
+        )}
+
+        {nearDupWarning && (
+          <div className="glass-card p-4 border border-amber-500/40 bg-amber-950/20">
+            <p className="text-sm text-amber-300 flex items-center gap-2 font-medium">
+              <span>⚠️</span> {nearDupWarning.message}
+            </p>
+            {nearDupWarning.similar_to && (
+              <p className="text-xs text-amber-400/80 mt-1">
+                Existing match: "{nearDupWarning.similar_to}" (similarity score: {Math.round((nearDupWarning.similarity || 0.85) * 100)}%)
+              </p>
+            )}
           </div>
         )}
 

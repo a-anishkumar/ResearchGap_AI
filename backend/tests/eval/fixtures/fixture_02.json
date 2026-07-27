@@ -1,0 +1,28 @@
+{
+  "filename": "lstm_sentiment.pdf",
+  "title": "Bidirectional LSTM for Sentiment Analysis",
+  "authors": [
+    "Alice Wang"
+  ],
+  "year": 2020,
+  "methods": [
+    "LSTM",
+    "Bidirectional LSTM",
+    "Attention Mechanism"
+  ],
+  "domains": [
+    "Sentiment Analysis",
+    "NLP"
+  ],
+  "datasets": [
+    "Amazon Reviews",
+    "Yelp Dataset"
+  ],
+  "results": [
+    {
+      "metric": "F1",
+      "value": "0.89",
+      "description": "Macro F1"
+    }
+  ]
+}

@@ -12,6 +12,8 @@ from app.models.schemas import (
     GapAnalysisResponse,
     GapSuggestResponse,
     GapSuggestion,
+    EvidenceTrail,
+    EvidencePaper,
     ProposalPolishResponse,
     ResearchProposal,
 )
@@ -65,6 +67,17 @@ async def suggest_gaps(top_n: int = Query(default=10, ge=1, le=50)):
         method_papers = await gap_finder.get_papers_for_method(gap.method)
         domain_papers = await gap_finder.get_papers_for_domain(gap.domain)
 
+        # Evidence trail: paper_id level method-only vs domain-only
+        evidence_trail = None
+        try:
+            trail_data = await gap_finder.get_evidence_trail(gap.method, gap.domain)
+            evidence_trail = EvidenceTrail(
+                method_only=[EvidencePaper(**p) for p in trail_data["method_only"][:10]],
+                domain_only=[EvidencePaper(**p) for p in trail_data["domain_only"][:10]],
+            )
+        except Exception as ev_err:
+            logger.warning(f"Could not build evidence trail for {gap.method} x {gap.domain}: {ev_err}")
+
         # RAG retrieval: gather relevant chunks for context
         query = f"{gap.method} applied to {gap.domain}"
         chunks = rag.retrieve(query, top_k=settings.rag_top_k)
@@ -117,6 +130,7 @@ Write a 2-3 sentence research opportunity statement explaining why combining {ga
                 supporting_papers=supporting_papers[:5],
                 method_papers=method_papers[:5],
                 domain_papers=domain_papers[:5],
+                evidence_papers=evidence_trail,
             )
         )
 
@@ -199,6 +213,136 @@ async def polish_proposal_endpoint(id: str):
     except Exception as e:
         logger.error(f"Proposal polish failed for {id}: {e}")
         raise HTTPException(status_code=500, detail=f"Proposal polish error: {e}")
+
+
+@router.get("/proposals/{id}/export")
+async def export_proposal_pdf(id: str):
+    """
+    Export the research proposal as a downloadable PDF using reportlab.
+    Returns the PDF as a streaming response for immediate browser download.
+    """
+    from fastapi.responses import StreamingResponse
+    import io
+
+    prop = await proposal_service.get_proposal(id)
+    if not prop:
+        raise HTTPException(status_code=404, detail=f"Proposal '{id}' not found")
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, ListFlowable, ListItem
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=2.5 * cm,
+            leftMargin=2.5 * cm,
+            topMargin=2.5 * cm,
+            bottomMargin=2.5 * cm,
+        )
+
+        styles = getSampleStyleSheet()
+        style_title = ParagraphStyle(
+            "ProposalTitle",
+            parent=styles["Title"],
+            fontSize=20,
+            leading=24,
+            textColor=colors.HexColor("#1a1a2e"),
+            spaceAfter=6,
+        )
+        style_subtitle = ParagraphStyle(
+            "ProposalSubtitle",
+            parent=styles["Normal"],
+            fontSize=12,
+            textColor=colors.HexColor("#555555"),
+            spaceAfter=20,
+            alignment=TA_CENTER,
+        )
+        style_heading = ParagraphStyle(
+            "SectionHeading",
+            parent=styles["Heading2"],
+            fontSize=13,
+            textColor=colors.HexColor("#6172f3"),
+            spaceBefore=16,
+            spaceAfter=6,
+        )
+        style_body = ParagraphStyle(
+            "BodyText",
+            parent=styles["Normal"],
+            fontSize=10,
+            leading=15,
+            spaceAfter=8,
+        )
+        style_bullet = ParagraphStyle(
+            "BulletText",
+            parent=styles["Normal"],
+            fontSize=10,
+            leading=14,
+            leftIndent=20,
+            spaceAfter=4,
+        )
+
+        story = []
+
+        # Title page
+        story.append(Paragraph(prop.title or f"{prop.method} in {prop.domain}", style_title))
+        story.append(Paragraph(f"Research Gap Proposal: {prop.method} × {prop.domain}", style_subtitle))
+        story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#6172f3")))
+        story.append(Spacer(1, 20))
+
+        sections = [
+            ("Problem Statement", prop.problem_statement),
+            ("Hypothesis", prop.hypothesis),
+            ("Expected Contributions", prop.expected_contributions),
+            ("Literature Justification", prop.literature_justification),
+        ]
+
+        for heading, body in sections:
+            if body:
+                story.append(Paragraph(heading, style_heading))
+                story.append(Paragraph(body.replace("\n", "<br/>"), style_body))
+
+        # Methodology Blueprint (bulleted list)
+        if prop.methodology_blueprint:
+            story.append(Paragraph("Methodology Blueprint", style_heading))
+            for step in prop.methodology_blueprint:
+                story.append(Paragraph(f"• {step}", style_bullet))
+
+        # Citation Seeds
+        if prop.citation_seeds:
+            story.append(Paragraph("Key References & Citation Seeds", style_heading))
+            for seed in prop.citation_seeds:
+                story.append(Paragraph(f"• {seed}", style_bullet))
+
+        story.append(Spacer(1, 30))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.grey))
+        story.append(Paragraph("Generated by ResearchGap AI — Automatic Research Gap Discovery Engine", style_subtitle))
+
+        doc.build(story)
+        buffer.seek(0)
+
+        safe_title = (prop.title or f"{prop.method}_{prop.domain}").replace(" ", "_")[:60]
+        filename = f"proposal_{safe_title}.pdf"
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    except ImportError:
+        raise HTTPException(
+            status_code=500,
+            detail="reportlab is not installed. Run: pip install reportlab",
+        )
+    except Exception as e:
+        logger.error(f"PDF export failed for proposal {id}: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF export error: {e}")
 
 
 

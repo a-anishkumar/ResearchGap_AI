@@ -1,0 +1,27 @@
+{
+  "filename": "xlnet_legal.pdf",
+  "title": "XLNet for Long Legal Document Classification",
+  "authors": [
+    "Michael Zhang"
+  ],
+  "year": 2022,
+  "methods": [
+    "XLNet",
+    "Document Classification"
+  ],
+  "domains": [
+    "Document AI",
+    "Legal NLP"
+  ],
+  "datasets": [
+    "ECtHR Dataset",
+    "EURLEX"
+  ],
+  "results": [
+    {
+      "metric": "Macro-F1",
+      "value": "0.81",
+      "description": "On legal case dataset"
+    }
+  ]
+}

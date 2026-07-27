@@ -13,6 +13,19 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 _collections: dict[str, Any] = {}
+_embedding_fn_singleton = None  # module-level singleton to avoid model reload
+
+
+def _get_embedding_fn():
+    """Lazy-load sentence-transformers embedding function — reused across all calls."""
+    global _embedding_fn_singleton
+    if _embedding_fn_singleton is None:
+        from chromadb.utils import embedding_functions
+        _embedding_fn_singleton = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name=settings.embedding_model
+        )
+        logger.info(f"SentenceTransformer model '{settings.embedding_model}' loaded and cached")
+    return _embedding_fn_singleton
 
 
 def _get_collection():
@@ -34,13 +47,6 @@ def _get_collection():
         logger.info(f"ChromaDB collection for project '{project}' ready at {path} ({_collections[project].count()} docs)")
     return _collections[project]
 
-
-def _get_embedding_fn():
-    """Lazy-load sentence-transformers embedding function for ChromaDB."""
-    from chromadb.utils import embedding_functions
-    return embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=settings.embedding_model
-    )
 
 
 def ingest_chunks(paper_id: str, chunks: list[str], metadata_extra: dict | None = None):
@@ -129,3 +135,43 @@ def delete_paper_chunks(paper_id: str):
     except Exception as e:
         logger.warning(f"Failed to delete chunks for paper {paper_id} from ChromaDB: {e}")
         raise
+
+
+def compute_answer_grounding_score(answer: str, chunks: list[str]) -> float:
+    """
+    Compute mean cosine similarity between the answer and retrieved context chunks.
+
+    Returns a float in [0, 1] where:
+      - 1.0 = perfect grounding (answer is very similar to context)
+      - 0.0 = no grounding (answer content not found in context)
+
+    If < 0.35, callers should flag the answer as low-confidence.
+    """
+    if not answer or not chunks:
+        return 0.0
+
+    try:
+        import numpy as np
+        ef = _get_embedding_fn()
+
+        # Embed answer and all chunks in a single batched call
+        all_texts = [answer] + chunks[:10]  # limit chunks to avoid slow embedding
+        embeddings = ef(all_texts)  # list of float lists
+        embeddings = [list(e) for e in embeddings]
+
+        answer_emb = np.array(embeddings[0])
+        chunk_embs = np.array(embeddings[1:])
+
+        if chunk_embs.size == 0:
+            return 0.0
+
+        # Cosine similarity = dot product of unit vectors
+        answer_norm = answer_emb / (np.linalg.norm(answer_emb) + 1e-8)
+        chunk_norms = chunk_embs / (np.linalg.norm(chunk_embs, axis=1, keepdims=True) + 1e-8)
+        similarities = np.dot(chunk_norms, answer_norm)
+
+        score = float(np.mean(similarities))
+        return max(0.0, min(1.0, score))  # clamp to [0, 1]
+    except Exception as e:
+        logger.warning(f"compute_answer_grounding_score failed: {e}")
+        return 0.5  # neutral score on error

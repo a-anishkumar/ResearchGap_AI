@@ -1,7 +1,9 @@
 """
-Google Gemini LLM client — drop-in replacement for the Anthropic client.
-Exposes the same `complete(system, user, max_tokens)` interface so all
-callers (llm_extractor, gaps router) require zero changes.
+Google Gemini LLM client.
+Exposes:
+  complete(system, user, max_tokens)          — plain text generation
+  complete_structured(system, user, schema)   — native JSON schema mode (Gemini)
+All existing callers of complete() require zero changes.
 """
 from __future__ import annotations
 
@@ -54,4 +56,49 @@ async def complete(system: str, user: str, max_tokens: int = 2048) -> str:
         raise ValueError("Gemini returned an empty response")
 
     logger.debug(f"Gemini response ({len(text)} chars): {text[:80]}…")
+    return text
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
+)
+async def complete_structured(
+    system: str,
+    user: str,
+    response_schema: dict,
+    max_tokens: int = 4096,
+) -> str:
+    """
+    Generate a structured JSON response enforced by Gemini's native schema mode.
+
+    Args:
+        system: System instruction for Gemini.
+        user: User prompt.
+        response_schema: JSON Schema dict describing the expected output.
+        max_tokens: Max output tokens.
+
+    Returns:
+        Raw JSON string guaranteed to match response_schema structure.
+    """
+    client = get_client()
+
+    response = client.models.generate_content(
+        model=settings.llm_model,
+        contents=user,
+        config=types.GenerateContentConfig(
+            system_instruction=system,
+            max_output_tokens=max_tokens,
+            temperature=0.1,  # lower temp for structured output
+            response_mime_type="application/json",
+            response_schema=response_schema,
+        ),
+    )
+
+    text = response.text
+    if not text:
+        raise ValueError("Gemini structured output returned an empty response")
+
+    logger.debug(f"Gemini structured response ({len(text)} chars): {text[:80]}…")
     return text

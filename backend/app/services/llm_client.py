@@ -24,6 +24,21 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
+# ── In-memory extraction stats ────────────────────────────────────────────────
+
+_extraction_stats: dict[str, int] = {
+    "total": 0,
+    "pass_first_attempt": 0,
+    "repaired": 0,
+    "failed": 0,
+}
+
+
+def get_extraction_stats() -> dict:
+    """Return a copy of the in-memory extraction stats."""
+    return dict(_extraction_stats)
+
+
 # ── Database Logging ─────────────────────────────────────────────────────────
 
 def _init_log_db(conn: sqlite3.Connection):
@@ -184,6 +199,20 @@ def _get_provider_chain() -> list[str]:
     return chain
 
 
+def _clean_schema_for_gemini(schema: Any) -> Any:
+    """Recursively strip unsupported keys like additionalProperties and $schema for Gemini Developer API."""
+    if isinstance(schema, dict):
+        cleaned = {}
+        for k, v in schema.items():
+            if k in ("additionalProperties", "$schema"):
+                continue
+            cleaned[k] = _clean_schema_for_gemini(v)
+        return cleaned
+    elif isinstance(schema, list):
+        return [_clean_schema_for_gemini(item) for item in schema]
+    return schema
+
+
 # ── Universal Structured Generator with Validation & Repair ─────────────
 
 async def generate_structured(
@@ -200,19 +229,57 @@ async def generate_structured(
     providers = _get_provider_chain()
     last_error = None
 
+    # Build a JSON schema dict from the Pydantic model for Gemini native mode
+    try:
+        raw_schema = schema_cls.model_json_schema()
+        schema_dict = _clean_schema_for_gemini(raw_schema)
+    except Exception:
+        schema_dict = None
+
+    _extraction_stats["total"] += 1
+
     for provider in providers:
         retry_count = 0
         raw_text = ""
         try:
-            # 1. Initial Attempt (Pass json_mode=True for native JSON enforcement on Ollama)
-            raw_text = await _call_provider(provider, prompt, system_instruction, json_mode=True)
+            # ── Gemini: use native JSON schema mode ──────────────────────────
+            if provider == "gemini" and schema_dict is not None:
+                try:
+                    raw_text = await claude_client.complete_structured(
+                        system=system_instruction or "You are a helpful AI research assistant.",
+                        user=prompt,
+                        response_schema=schema_dict,
+                    )
+                    cleaned_text = _normalize_json_text(raw_text)
+                    parsed_obj = schema_cls.model_validate_json(cleaned_text)
+                    log_llm_call(provider, endpoint, retry_count=0, success=True)
+                    _extraction_stats["pass_first_attempt"] += 1
+
+                    if rag_chunks and hasattr(parsed_obj, "citation_flags"):
+                        grounding_flags = run_grounding_check(raw_text, rag_chunks)
+                        if grounding_flags:
+                            current_flags = getattr(parsed_obj, "citation_flags", []) or []
+                            setattr(parsed_obj, "citation_flags", current_flags + grounding_flags)
+
+                    return parsed_obj
+                except Exception as schema_err:
+                    logger.warning(
+                        f"Gemini schema mode failed for {schema_cls.__name__}: {schema_err}. "
+                        "Falling back to text-parse path."
+                    )
+                    # Fall through to the generic text-parse path below
+                    raw_text = await _call_provider(provider, prompt, system_instruction, json_mode=True)
+            else:
+                # ── Ollama / other: plain text parse path ────────────────────
+                raw_text = await _call_provider(provider, prompt, system_instruction, json_mode=True)
+
             cleaned_text = _normalize_json_text(raw_text)
 
             try:
                 parsed_obj = schema_cls.model_validate_json(cleaned_text)
                 log_llm_call(provider, endpoint, retry_count=0, success=True)
-                
-                # Check RAG grounding if applicable
+                _extraction_stats["pass_first_attempt"] += 1
+
                 if rag_chunks and hasattr(parsed_obj, "citation_flags"):
                     grounding_flags = run_grounding_check(raw_text, rag_chunks)
                     if grounding_flags:
@@ -237,8 +304,9 @@ async def generate_structured(
                 parsed_obj = schema_cls.model_validate_json(cleaned_repair)
 
                 log_llm_call(provider, endpoint, retry_count=1, success=True)
+                _extraction_stats["repaired"] += 1
                 logger.info(f"Provider '{provider}' repair pass SUCCEEDED for {schema_cls.__name__}.")
-                
+
                 if rag_chunks and hasattr(parsed_obj, "citation_flags"):
                     grounding_flags = run_grounding_check(repair_text, rag_chunks)
                     if grounding_flags:
@@ -253,6 +321,7 @@ async def generate_structured(
             log_llm_call(provider, endpoint, retry_count=retry_count, success=False, error_message=err_msg)
             last_error = e
 
+    _extraction_stats["failed"] += 1
     raise RuntimeError(f"All LLM providers ({providers}) failed structured generation for {schema_cls.__name__}. Last error: {last_error}")
 
 

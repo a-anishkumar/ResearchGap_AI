@@ -20,7 +20,26 @@ logger = logging.getLogger(__name__)
 
 S2_BASE_URL = "https://api.semanticscholar.org/graph/v1"
 CACHE_TTL_DAYS = 30
+MEMORY_CACHE_TTL_HOURS = 24
 _s2_semaphore = asyncio.Semaphore(2)  # Limit concurrent S2 API calls to prevent 429s
+
+# In-memory cache: paper_id -> (data_dict, expires_at_timestamp)
+_memory_cache: dict[str, tuple[dict, float]] = {}
+
+
+def _get_memory_cached(paper_id: str) -> dict | None:
+    """Return cached data if still fresh (< 24h old), else None."""
+    import time
+    entry = _memory_cache.get(paper_id)
+    if entry and time.time() < entry[1]:
+        return entry[0]
+    return None
+
+
+def _set_memory_cache(paper_id: str, data: dict):
+    """Store data in memory cache with 24h TTL."""
+    import time
+    _memory_cache[paper_id] = (data, time.time() + MEMORY_CACHE_TTL_HOURS * 3600)
 
 
 def _ensure_table(cursor: sqlite3.Cursor):
@@ -75,14 +94,20 @@ def _get_all_cached_s2_metadata() -> dict[str, dict]:
 
 async def fetch_s2_paper_metadata(paper_id: str, title: str) -> dict:
     """
-    Fetch paper metadata (citation count, citations, references, authors) from S2 Graph API with SQLite 30-day cache.
+    Fetch paper metadata (citation count, citations, references, authors) from S2 Graph API.
+    Cache layers: in-memory (24h) -> SQLite (30 days) -> live API call.
     """
+    # Layer 1: In-memory cache (fastest, avoids DB read)
+    mem_cached = _get_memory_cached(paper_id)
+    if mem_cached:
+        return mem_cached
+
     db_path = get_sqlite_db_path()
     conn = sqlite3.connect(db_path, timeout=10.0)
     cursor = conn.cursor()
     _ensure_table(cursor)
 
-    # 1. Check cache
+    # Layer 2: SQLite cache
     cursor.execute("""
         SELECT s2_id, citation_count, reference_count, citations_json, references_json, authors_json, cached_at
         FROM paper_external_metadata WHERE paper_id = ?
@@ -94,7 +119,7 @@ async def fetch_s2_paper_metadata(paper_id: str, title: str) -> dict:
             cached_time = datetime.datetime.fromisoformat(row[6])
             if (datetime.datetime.utcnow() - cached_time).days < CACHE_TTL_DAYS:
                 conn.close()
-                return {
+                result = {
                     "paper_id": paper_id,
                     "s2_id": row[0] or "",
                     "citation_count": row[1] or 0,
@@ -104,6 +129,8 @@ async def fetch_s2_paper_metadata(paper_id: str, title: str) -> dict:
                     "authors": json.loads(row[5]) if row[5] else [],
                     "is_cached": True
                 }
+                _set_memory_cache(paper_id, result)
+                return result
         except Exception as e:
             logger.warning(f"Error parsing S2 cache for {paper_id}: {e}")
 

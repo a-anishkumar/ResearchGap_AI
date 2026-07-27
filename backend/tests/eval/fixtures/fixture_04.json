@@ -1,0 +1,28 @@
+{
+  "filename": "transformer_translation.pdf",
+  "title": "Transformer for Low-Resource Machine Translation",
+  "authors": [
+    "Fatima Hassan"
+  ],
+  "year": 2021,
+  "methods": [
+    "Transformer",
+    "Attention Mechanism",
+    "Self-Attention"
+  ],
+  "domains": [
+    "Machine Translation",
+    "Low-Resource NLP"
+  ],
+  "datasets": [
+    "FLORES-101",
+    "WMT2021"
+  ],
+  "results": [
+    {
+      "metric": "BLEU",
+      "value": "32.4",
+      "description": "BLEU score"
+    }
+  ]
+}

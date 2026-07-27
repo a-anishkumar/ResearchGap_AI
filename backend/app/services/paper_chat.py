@@ -243,6 +243,26 @@ Generate a JSON response with EXACTLY this schema:
         ]
         citation_flags = []
 
+    # ── RAG Grounding Check (embedding cosine similarity) ───────────────────
+    GROUNDING_THRESHOLD = 0.35
+    try:
+        grounding_score = rag.compute_answer_grounding_score(answer, rag_text_chunks)
+        if grounding_score < GROUNDING_THRESHOLD and rag_text_chunks:
+            warning = (
+                f"⚠️ Low confidence: This answer has limited grounding in the uploaded paper "
+                f"(similarity score: {grounding_score:.2f}). Please verify claims against the source PDF."
+            )
+            answer = warning + "\n\n" + answer
+            citation_flags.append({
+                "sentence": answer[:120],
+                "reason": f"Embedding similarity between answer and retrieved chunks is {grounding_score:.2f}, below threshold {GROUNDING_THRESHOLD}.",
+                "suggested_citation_or_softening": "Cross-check this response against the original paper before use.",
+            })
+            logger.warning(f"Low RAG grounding score {grounding_score:.2f} for paper_id={paper_id}")
+    except Exception as gs_err:
+        logger.debug(f"Grounding score computation skipped: {gs_err}")
+    # ─────────────────────────────────────────────────────────────────────────
+
     # Save turns to database
     now_str = datetime.datetime.utcnow().isoformat()
     cursor = conn.cursor()

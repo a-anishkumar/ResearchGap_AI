@@ -1,0 +1,27 @@
+{
+  "filename": "gan_image_synthesis.pdf",
+  "title": "Conditional GAN for Image Synthesis",
+  "authors": [
+    "Yuki Tanaka"
+  ],
+  "year": 2021,
+  "methods": [
+    "GAN",
+    "Conditional GAN"
+  ],
+  "domains": [
+    "Computer Vision",
+    "Generative AI"
+  ],
+  "datasets": [
+    "CelebA-HQ",
+    "FFHQ"
+  ],
+  "results": [
+    {
+      "metric": "FID",
+      "value": "4.2",
+      "description": "Frechet Inception Distance"
+    }
+  ]
+}
