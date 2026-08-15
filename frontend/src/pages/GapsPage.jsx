@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useStore from '../api/store'
 import { analyzeGaps, suggestGaps } from '../api/client'
 import GapCard from '../components/GapCard'
+import GapWorkshopModal from '../components/GapWorkshopModal'
 import { exportGapsAsMarkdown, exportGapsAsJSON } from '../utils/exportReport'
 import { useToast } from '../components/Toast'
 
@@ -282,6 +283,7 @@ export default function GapsPage() {
   const [suggestError, setSuggestError]   = useState(null)
   const [activeTab, setActiveTab]   = useState('candidates')
   const [showExport, setShowExport] = useState(false)
+  const [isWorkshopOpen, setIsWorkshopOpen] = useState(false)
   const toast = useToast()
 
   const handleAnalyze = async () => {
@@ -329,36 +331,40 @@ export default function GapsPage() {
         </div>
 
         {/* Controls */}
-        <div className="glass-card p-5 mb-6 flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-slate-400 font-medium">Top gaps:</label>
-            <select
-              id="top-n-select"
-              value={topN}
-              onChange={e => setTopN(Number(e.target.value))}
-              className="input-base w-24 py-2"
+        <div className="glass-card p-5 mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-slate-400 font-medium">Top gaps:</label>
+              <select
+                id="top-n-select"
+                value={topN}
+                onChange={e => setTopN(Number(e.target.value))}
+                className="input-base w-24 py-2"
+              >
+                {[5, 10, 15, 20, 30, 50].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <button id="analyze-gaps-btn" onClick={handleAnalyze} disabled={loadingGaps} className="btn-secondary flex items-center gap-1.5">
+              <ChartIcon className="w-4 h-4" />
+              {loadingGaps ? 'Analyzing…' : 'Analyze Gaps'}
+            </button>
+
+            <button id="ai-suggest-btn" onClick={handleSuggest} disabled={loadingSuggestions} className="btn-primary flex items-center gap-1.5 shadow-glow-brand">
+              <SparklesIcon className="w-4 h-4" />
+              {loadingSuggestions ? 'Generating…' : 'AI Opportunities'}
+            </button>
+
+            {/* Interactive Workshop Launcher */}
+            <button
+              onClick={() => setIsWorkshopOpen(true)}
+              className="bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2"
             >
-              {[5, 10, 15, 20, 30, 50].map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+              <span>🔬</span> Launch Gap Workshop
+            </button>
           </div>
-
-          <button id="analyze-gaps-btn" onClick={handleAnalyze} disabled={loadingGaps} className="btn-secondary flex items-center gap-1.5">
-            <ChartIcon className="w-4 h-4" />
-            {loadingGaps ? 'Analyzing…' : 'Analyze Gaps'}
-          </button>
-
-          <button
-            id="suggest-gaps-btn"
-            onClick={handleSuggest}
-            disabled={loadingSuggestions || (gapAnalysis && gapAnalysis.missing_pairs === 0)}
-            className="btn-primary flex items-center gap-1.5"
-            title={gapAnalysis?.missing_pairs === 0 ? 'No gaps to suggest for' : 'Generate AI suggestions'}
-          >
-            <SparklesIcon className="w-4 h-4" />
-            {loadingSuggestions ? 'Generating…' : 'Generate AI Suggestions'}
-          </button>
 
           {/* Export */}
           {(gapAnalysis || gapSuggestions) && (
@@ -382,6 +388,12 @@ export default function GapsPage() {
             </div>
           )}
         </div>
+
+        {/* Workshop Modal Render */}
+        <GapWorkshopModal
+          isOpen={isWorkshopOpen}
+          onClose={() => setIsWorkshopOpen(false)}
+        />
 
         {/* Errors */}
         {analyzeError && (

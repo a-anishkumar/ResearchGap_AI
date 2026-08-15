@@ -1,7 +1,11 @@
 import { useEffect, useCallback, useState } from 'react'
+import axios from 'axios'
 import useStore from '../api/store'
 import { getGraphStats, getHealth, getAllStatus } from '../api/client'
 import StatDetailPanel from '../components/StatDetailPanel'
+import CorpusSkewBanner from '../components/CorpusSkewBanner'
+import CostTrackerWidget from '../components/CostTrackerWidget'
+import NodeMergeModal from '../components/NodeMergeModal'
 
 // ── Clean vector icons for dashboard ─────────────────────────────────────────
 function PaperIcon({ className = "w-5 h-5" }) {
@@ -125,22 +129,33 @@ const WORKFLOW_STEPS = [
   { label: 'Find Gaps',      page: 'gaps',       icon: '🔍' },
 ]
 
-export default function DashboardPage() {
-  const { graphStats, setGraphStats, setPage, papers, setPapers, health, setHealth } = useStore()
+export default function DashboardPage({ setActiveTab }) {
+  const { setGraphStats, setPapers, setHealth } = useStore()
+  const graphStats = useStore((s) => s.graphStats)
+  const papers     = useStore((s) => s.papers)
+  const health     = useStore((s) => s.health)
+
   const [loading, setLoading] = useState(false)
   const [selectedCard, setSelectedCard] = useState(null)
+  const [coverageData, setCoverageData] = useState(null)
+  const [costData, setCostData] = useState(null)
+  const [isCurationOpen, setIsCurationOpen] = useState(false)
 
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [statsRes, statusRes, healthRes] = await Promise.allSettled([
+      const [statsRes, statusRes, healthRes, covRes, costRes] = await Promise.allSettled([
         getGraphStats(),
         getAllStatus(),
         getHealth(),
+        axios.get('/api/analytics/coverage'),
+        axios.get('/api/analytics/cost'),
       ])
       if (statsRes.status === 'fulfilled')  setGraphStats(statsRes.value.data)
       if (statusRes.status === 'fulfilled') setPapers(statusRes.value.data)
       if (healthRes.status === 'fulfilled') setHealth(healthRes.value.data)
+      if (covRes.status === 'fulfilled') setCoverageData(covRes.value.data)
+      if (costRes.status === 'fulfilled') setCostData(costRes.value.data)
     } finally {
       setLoading(false)
     }
@@ -154,6 +169,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen mesh-bg pt-20 px-6 py-10">
       <div className="max-w-6xl mx-auto">
+        <NodeMergeModal isOpen={isCurationOpen} onClose={() => setIsCurationOpen(false)} />
 
         {/* Header */}
         <div className="mb-8 animate-fade-in flex flex-wrap items-start justify-between gap-4">
@@ -173,6 +189,17 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {/* Corpus Coverage Skew Alert & Health Banner */}
+        <CorpusSkewBanner
+          coverageData={coverageData}
+          onOpenCuration={() => setIsCurationOpen(true)}
+        />
+
+        {/* Telemetry & Cost Tracker Widget */}
+        <div className="mb-6">
+          <CostTrackerWidget costData={costData} />
+        </div>
+
         {/* Workflow Steps */}
         <div className="glass-card p-4 mb-8 animate-slide-up">
           <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3">Research Workflow</p>
@@ -188,7 +215,7 @@ export default function DashboardPage() {
               return (
                 <div key={step.page} className="flex items-center gap-2 flex-1 min-w-0">
                   <button
-                    onClick={() => setPage(step.page)}
+                    onClick={() => setActiveTab && setActiveTab(step.page)}
                     className={`flex flex-col sm:flex-row items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all w-full text-center sm:text-left
                       ${ isDone
                         ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-950/50'

@@ -68,6 +68,10 @@ def test_database_logging():
     print("[OK] Database logging verified in llm_call_log table.")
 
 
+import pytest
+
+
+@pytest.mark.asyncio
 async def test_structured_generation():
     print("\n--- 4. Testing End-to-End Structured Generation ---")
     prompt = "Generate metadata for a paper titled 'Deep Learning for Genomics' by Alice Smith written in 2023."

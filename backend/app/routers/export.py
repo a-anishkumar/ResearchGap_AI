@@ -1,16 +1,17 @@
 """
-Export router — BibTeX and LaTeX proposal export generation endpoints.
+Export router — BibTeX, LaTeX, Markdown, and PDF proposal export endpoints.
 """
 from __future__ import annotations
 
 import logging
 import re
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse
-from app.services import gap_finder, graph_builder
+
+from app.services import gap_finder, graph_builder, proposal_service
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/gaps/export", tags=["export"])
+router = APIRouter(prefix="/api/export", tags=["export"])
 
 
 def _to_bibtex_key(title: str, year: int | str | None) -> str:
@@ -19,8 +20,8 @@ def _to_bibtex_key(title: str, year: int | str | None) -> str:
     return f"{cleaned.lower()}{yr}"
 
 
-@router.get("/bibtex", response_class=PlainTextResponse)
-async def export_bibtex(
+@router.get("/gaps/bibtex", response_class=PlainTextResponse)
+async def export_gaps_bibtex(
     method: str = Query(..., description="Method name"),
     domain: str = Query(..., description="Domain name")
 ):
@@ -54,54 +55,54 @@ async def export_bibtex(
         raise HTTPException(status_code=500, detail=f"Failed to generate BibTeX: {e}")
 
 
-@router.get("/latex", response_class=PlainTextResponse)
-async def export_latex(
-    method: str = Query(..., description="Method name"),
-    domain: str = Query(..., description="Domain name")
-):
-    """Generate LaTeX proposal document template for applying Method to Domain."""
-    try:
-        val_res = await gap_finder.check_external_gap_validation(method, domain)
-        bib_key_m = re.sub(r"[^a-zA-Z0-9]", "", method.lower())
-        bib_key_d = re.sub(r"[^a-zA-Z0-9]", "", domain.lower())
+@router.get("/proposal/{proposal_id}/latex", response_class=PlainTextResponse)
+async def export_proposal_latex(proposal_id: str):
+    """Export research proposal blueprint as LaTeX (.tex) document."""
+    proposal = await proposal_service.get_proposal(proposal_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+    return PlainTextResponse(
+        content=proposal_service.export_proposal_latex(proposal),
+        media_type="application/x-tex",
+        headers={"Content-Disposition": f"attachment; filename={proposal_id}.tex"}
+    )
 
-        latex_doc = f"""\\documentclass[11pt, a4paper]{{article}}
-\\usepackage[utf8]{{inputenc}}
-\\usepackage{{amsmath, amssymb, graphicx, hyperref, booktabs}}
 
-\\title{{\\textbf{{Research Proposal: Applying {method} to {domain}}}}}
-\\author{{\\textbf{{ResearchGap AI Proposal Engine}}}}
-\\date{{\\today}}
+@router.get("/proposal/{proposal_id}/bibtex", response_class=PlainTextResponse)
+async def export_proposal_bibtex(proposal_id: str):
+    """Export research proposal citation seeds as BibTeX (.bib) file."""
+    proposal = await proposal_service.get_proposal(proposal_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+    return PlainTextResponse(
+        content=proposal_service.export_proposal_bibtex(proposal),
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={proposal_id}.bib"}
+    )
 
-\\begin{{document}}
 
-\\maketitle
+@router.get("/proposal/{proposal_id}/markdown", response_class=PlainTextResponse)
+async def export_proposal_markdown(proposal_id: str):
+    """Export research proposal blueprint as Markdown (.md) document."""
+    proposal = await proposal_service.get_proposal(proposal_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+    return PlainTextResponse(
+        content=proposal_service.export_proposal_markdown(proposal),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename={proposal_id}.md"}
+    )
 
-\\begin{{abstract}}
-This document outlines a research proposal exploring the integration of \\textbf{{{method}}} into the domain of \\textbf{{{domain}}}. Algorithmic analysis of the literature corpus indicates a direct research gap. External literature validation status: \\textit{{{val_res.get('status')}}}.
-\\end{{abstract}}
 
-\\section{{Problem Statement}}
-While \\textbf{{{method}}} has demonstrated strong utility in machine learning architectures, its direct application to \\textbf{{{domain}}} remains under-explored in the target corpus. This work aims to bridge this domain divide.
-
-\\section{{Core Hypothesis}}
-We hypothesize that adapting \\textbf{{{method}}} to the specific constraints of \\textbf{{{domain}}} will yield improved accuracy, scalability, and generalization.
-
-\\section{{Proposed Methodology Blueprint}}
-\\begin{{enumerate}}
-    \\item \\textbf{{Data Pipeline}}: Preprocess benchmark datasets relevant to {domain}.
-    \\item \\textbf{{Model Adaptation}}: Modify {method} architecture to accommodate domain-specific feature spaces.
-    \\item \\textbf{{Evaluation}}: Benchmark against traditional approaches using standard evaluation metrics.
-\\end{{enumerate}}
-
-\\section{{Literature Justification}}
-Seed citations from the corpus support the foundational readiness of both the method and domain.
-
-\\bibliographystyle{{plain}}
-\\bibliography{{references}}
-
-\\end{{document}}"""
-
-        return latex_doc
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate LaTeX document: {e}")
+@router.get("/proposal/{proposal_id}/pdf")
+async def export_proposal_pdf(proposal_id: str):
+    """Export research proposal blueprint as binary PDF document."""
+    proposal = await proposal_service.get_proposal(proposal_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+    pdf_bytes = proposal_service.export_proposal_pdf(proposal)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={proposal_id}.pdf"}
+    )

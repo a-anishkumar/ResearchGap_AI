@@ -174,16 +174,6 @@ async def upload_papers(
             page_count=0,
             status="uploaded",
         )
-        if near_dup_warning:
-            papers.append(paper_meta)
-            # Return early with warning for this file embedded in meta
-            return JSONResponse(
-                status_code=202,
-                content={
-                    "papers": [paper_meta.model_dump()],
-                    "near_duplicate_warning": near_dup_warning,
-                },
-            )
         papers.append(paper_meta)
 
     return UploadResponse(papers=papers)

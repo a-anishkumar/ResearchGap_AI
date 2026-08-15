@@ -21,7 +21,7 @@ async def get_observed_pairs() -> set[tuple[str, str]]:
         RETURN DISTINCT m.name AS method, d.name AS domain
         """
     )
-    return {(r["method"], r["domain"]) for r in rows}
+    return {(r["method"], r["domain"]) for r in rows if r.get("method") and r.get("domain")}
 
 
 async def get_method_frequencies() -> dict[str, int]:
@@ -32,7 +32,7 @@ async def get_method_frequencies() -> dict[str, int]:
         ORDER BY freq DESC
         """
     )
-    return {r["method"]: r["freq"] for r in rows}
+    return {r["method"]: r["freq"] for r in rows if r.get("method")}
 
 
 async def get_domain_frequencies() -> dict[str, int]:
@@ -43,7 +43,7 @@ async def get_domain_frequencies() -> dict[str, int]:
         ORDER BY freq DESC
         """
     )
-    return {r["domain"]: r["freq"] for r in rows}
+    return {r["domain"]: r["freq"] for r in rows if r.get("domain")}
 
 
 async def get_papers_for_method(method: str) -> list[str]:

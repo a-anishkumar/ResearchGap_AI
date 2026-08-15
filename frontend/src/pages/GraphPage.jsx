@@ -5,6 +5,7 @@ import useStore from '../api/store'
 import { getGraphData, getGraphStats } from '../api/client'
 import NodeDetailPanel from '../components/NodeDetailPanel'
 import GraphAnalyticsPanel from '../components/GraphAnalyticsPanel'
+import NodeMergeModal from '../components/NodeMergeModal'
 import { formatNodeLabel } from '../utils/textUtils'
 
 /* ── Constants ──────────────────────────────────────────── */
@@ -74,6 +75,7 @@ export default function GraphPage() {
   const [hoveredNode, setHoveredNode]     = useState(null)   // hovered node id
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [neighborMode, setNeighborMode]   = useState(false)  // dim non-neighbors
+  const [isCurationOpen, setIsCurationOpen] = useState(false)
 
   const graphRef  = useRef()
   const searchRef = useRef()
@@ -397,6 +399,16 @@ export default function GraphPage() {
             Analytics
           </button>
 
+          {/* Curation Toggle */}
+          <button
+            id="toggle-curation-btn"
+            onClick={() => setIsCurationOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-surface-600 text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 transition-all duration-150"
+          >
+            <span>🛠️</span>
+            Curate Taxonomy
+          </button>
+
           {/* Neighbor Highlight */}
           {selectedNode && (
             <button
@@ -672,6 +684,12 @@ export default function GraphPage() {
         </div>
       )}
 
+      {/* Curation Modal */}
+      <NodeMergeModal
+        isOpen={isCurationOpen}
+        onClose={() => setIsCurationOpen(false)}
+        onMergeSuccess={loadGraph}
+      />
     </div>
   )
 }

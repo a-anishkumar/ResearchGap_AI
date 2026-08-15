@@ -1,10 +1,17 @@
-import requests
+import sys
+from pathlib import Path
 
-BASE_URL = "http://localhost:8000/api/gaps"
+backend_dir = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(backend_dir))
+
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
 
 def test_proposal_endpoints():
     print("1. Testing proposal generation endpoint...")
-    gen_res = requests.post(f"{BASE_URL}/proposals/generate", params={
+    gen_res = client.post("/api/gaps/proposals/generate", params={
         "method": "Transformer Architecture",
         "domain": "Biomedical Named Entity Recognition",
         "suggestion": "WHY THIS GAP EXISTS:\n• High computational overhead in clinical texts.\n\nRESEARCH OPPORTUNITY:\n• Lightweight Transformers for clinical NER."
@@ -16,12 +23,12 @@ def test_proposal_endpoints():
     print(f"   Title: {prop_data['title']}")
 
     print("\n2. Testing proposal lookup by ID endpoint...")
-    get_res = requests.get(f"{BASE_URL}/proposals/{prop_id}")
+    get_res = client.get(f"/api/gaps/proposals/{prop_id}")
     assert get_res.status_code == 200, f"Get proposal failed: {get_res.text}"
     print(f"✅ Retrieved Proposal ID: {get_res.json()['id']}")
 
     print("\n3. Testing 3-Pass Proposal Polish endpoint...")
-    polish_res = requests.post(f"{BASE_URL}/proposals/{prop_id}/polish")
+    polish_res = client.post(f"/api/gaps/proposals/{prop_id}/polish")
     assert polish_res.status_code == 200, f"Polish failed: {polish_res.text}"
     p_data = polish_res.json()
     
@@ -38,7 +45,7 @@ def test_proposal_endpoints():
         print(f"   • Variant Title: {tv['title']}")
 
     print("\n4. Testing Polish Cache Retrieval (2nd Call)...")
-    cache_res = requests.post(f"{BASE_URL}/proposals/{prop_id}/polish")
+    cache_res = client.post(f"/api/gaps/proposals/{prop_id}/polish")
     assert cache_res.status_code == 200, "Cache retrieval failed"
     print("✅ Cached polish result successfully returned!")
 

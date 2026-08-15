@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { getProjects } from '../api/client'
 import useStore from '../api/store'
+import OllamaControlModal from './OllamaControlModal'
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 function Icon({ d, d2, className = "w-4 h-4" }) {
@@ -67,6 +68,7 @@ function NavBtn({ item, isActive, isDisabled, onClick }) {
 export default function Navbar() {
   const { page, setPage, health, setHealth, activeProject, setActiveProject, projects, setProjects } = useStore()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [isOllamaModalOpen, setOllamaModalOpen] = useState(false)
   const moreRef = useRef(null)
 
   useEffect(() => {
@@ -180,8 +182,18 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* Right: Project switcher + health */}
+        {/* Right: Project switcher + Ollama control + health */}
         <div className="flex items-center gap-2 shrink-0">
+
+          {/* Ollama Control Center Trigger */}
+          <button
+            onClick={() => setOllamaModalOpen(true)}
+            className="flex items-center gap-1.5 bg-indigo-950/40 hover:bg-indigo-900/60 px-2.5 py-1.5 rounded-xl border border-indigo-500/30 text-indigo-300 text-xs font-medium transition cursor-pointer"
+            title="Open Ollama Local AI Control Center"
+          >
+            <span>🦙</span>
+            <span className="hidden sm:inline">Ollama AI</span>
+          </button>
 
           {/* Project switcher */}
           <div className="relative flex items-center gap-1.5 bg-surface-700/40 hover:bg-surface-600/50 px-2.5 py-1.5 rounded-xl border border-white/8 transition-colors cursor-pointer max-w-[160px] sm:max-w-[200px]"
@@ -230,6 +242,12 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Ollama Modal */}
+      <OllamaControlModal
+        isOpen={isOllamaModalOpen}
+        onClose={() => setOllamaModalOpen(false)}
+      />
     </header>
   )
 }

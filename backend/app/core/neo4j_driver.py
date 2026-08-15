@@ -3,6 +3,7 @@ from app.core.config import settings
 import logging
 import sqlite3
 import json
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -126,7 +127,9 @@ def run_query_sqlite(query: str, parameters: dict | None = None) -> list:
     """Mock Cypher queries using a local SQLite database."""
     parameters = parameters or {}
     from app.core.project import get_sqlite_db_path
-    conn = sqlite3.connect(get_sqlite_db_path())
+    db_path = get_sqlite_db_path()
+    os.makedirs(db_path.parent, exist_ok=True)
+    conn = sqlite3.connect(str(db_path), timeout=10.0)
     cursor = conn.cursor()
     try:
         # Template 1: Create Constraint (No-op)
@@ -355,6 +358,17 @@ def run_query_sqlite(query: str, parameters: dict | None = None) -> list:
             )
             rows = cursor.fetchall()
             return [{"title": r[0]} for r in rows]
+
+        # Template 15: Node names UNION ALL (Methods, Domains, Datasets)
+        if "RETURN" in query and "name AS name" in query:
+            cursor.execute("SELECT name FROM methods UNION SELECT name FROM domains UNION SELECT name FROM datasets")
+            rows = cursor.fetchall()
+            return [{"name": r[0]} for r in rows if r[0]]
+
+        # Template 16: Paper count query
+        if "MATCH (p:Paper) RETURN count(p)" in query:
+            cursor.execute("SELECT COUNT(*) FROM papers")
+            return [{"count": cursor.fetchone()[0]}]
 
         raise ValueError(f"Unsupported offline Cypher query: {query}")
 

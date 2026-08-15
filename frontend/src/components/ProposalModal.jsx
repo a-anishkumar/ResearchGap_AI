@@ -133,35 +133,52 @@ export default function ProposalModal({ gap, onClose }) {
     }
   }
 
-  // Export proposal as PDF
-  const handleExportPdf = async () => {
+  // Export proposal in target format
+  const handleExportFormat = async (fmt) => {
     if (!proposal?.id) {
       toast?.error('Proposal not loaded yet. Please wait.')
       return
     }
     setExporting(true)
     try {
-      const response = await fetch(`/api/gaps/proposals/${proposal.id}/export`, {
+      const endpoint = fmt === 'pdf'
+        ? `/api/gaps/proposals/${proposal.id}/export`
+        : `/api/gaps/proposals/${proposal.id}/export/${fmt}`
+      
+      const response = await fetch(endpoint, {
         method: 'GET',
-        headers: { 'X-Project-Name': localStorage.getItem('currentProject') || 'default' },
+        headers: { 'X-Project': localStorage.getItem('activeProject') || 'default' },
       })
       if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.detail || 'Export failed')
+        throw new Error(`Export ${fmt} failed`)
       }
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
+
       const safeName = (proposal.title || `${gap.method}_${gap.domain}`).replace(/[^a-z0-9]/gi, '_').slice(0, 60)
-      a.href = url
-      a.download = `proposal_${safeName}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast?.success('PDF downloaded!')
+      if (fmt === 'pdf') {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `proposal_${safeName}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } else {
+        const text = await response.text()
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `proposal_${safeName}.${fmt === 'latex' ? 'tex' : fmt === 'bibtex' ? 'bib' : 'md'}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+      toast?.success(`Exported proposal as ${fmt.toUpperCase()}!`)
     } catch (e) {
-      toast?.error(`PDF export failed: ${e.message}`)
+      toast?.error(`Export failed: ${e.message}`)
     } finally {
       setExporting(false)
     }
@@ -186,36 +203,55 @@ export default function ProposalModal({ gap, onClose }) {
               Research Proposal & Academic Polish
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={handlePolish}
               disabled={polishing || loading}
-              className="btn-primary py-2 px-4 flex items-center gap-2 shadow-glow-brand"
+              className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5 shadow-glow-brand"
             >
-              <SparklesIcon className="w-4 h-4 text-amber-300 animate-spin-slow" />
-              {polishing ? 'Running 3 Polish Passes…' : polishData ? 'Re-Polish Proposal' : '✨ Polish Proposal'}
+              <SparklesIcon className="w-3.5 h-3.5 text-amber-300 animate-spin-slow" />
+              {polishing ? 'Polishing…' : polishData ? 'Re-Polish' : '✨ Polish'}
             </button>
-            <button
-              onClick={handleExportPdf}
-              disabled={exporting || loading || !proposal}
-              title="Export proposal as PDF"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-500/40 text-brand-400 hover:bg-brand-900/30 hover:text-brand-300 transition-all duration-150 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {exporting ? (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              )}
-              {exporting ? 'Exporting…' : 'Export PDF'}
-            </button>
+
+            {/* Export Dropdown Group */}
+            <div className="flex items-center gap-1 bg-slate-900/80 border border-slate-700/60 rounded-lg p-1 text-xs">
+              <button
+                onClick={() => handleExportFormat('latex')}
+                disabled={exporting || loading || !proposal}
+                className="px-2 py-1 hover:bg-slate-800 text-slate-300 hover:text-white rounded font-mono"
+                title="Export LaTeX (.tex)"
+              >
+                LaTeX
+              </button>
+              <button
+                onClick={() => handleExportFormat('bibtex')}
+                disabled={exporting || loading || !proposal}
+                className="px-2 py-1 hover:bg-slate-800 text-slate-300 hover:text-white rounded font-mono"
+                title="Export BibTeX (.bib)"
+              >
+                BibTeX
+              </button>
+              <button
+                onClick={() => handleExportFormat('markdown')}
+                disabled={exporting || loading || !proposal}
+                className="px-2 py-1 hover:bg-slate-800 text-slate-300 hover:text-white rounded font-mono"
+                title="Export Markdown (.md)"
+              >
+                MD
+              </button>
+              <button
+                onClick={() => handleExportFormat('pdf')}
+                disabled={exporting || loading || !proposal}
+                className="px-2 py-1 bg-brand-600/80 hover:bg-brand-600 text-white rounded font-bold"
+                title="Export PDF (.pdf)"
+              >
+                PDF
+              </button>
+            </div>
+
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors ml-1"
             >
               ✕
             </button>

@@ -33,50 +33,60 @@ def _get_collection():
     project = get_project_name()
     if project not in _collections:
         import chromadb
+        import shutil
         from chromadb.config import Settings as ChromaSettings
 
-        path = str(get_chroma_path().resolve())
-        client = chromadb.PersistentClient(
-            path=path,
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
-        _collections[project] = client.get_or_create_collection(
-            name="papers",
-            metadata={"hnsw:space": "cosine"},
-        )
+        chroma_dir = get_chroma_path().resolve()
+        path = str(chroma_dir)
+        try:
+            client = chromadb.PersistentClient(
+                path=path,
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
+            _collections[project] = client.get_or_create_collection(
+                name="papers",
+                metadata={"hnsw:space": "cosine"},
+            )
+        except Exception as e:
+            logger.warning(f"ChromaDB store error at {path}: {e}. Resetting collection storage...")
+            if project in _collections:
+                del _collections[project]
+            if chroma_dir.exists():
+                shutil.rmtree(chroma_dir, ignore_errors=True)
+            chroma_dir.mkdir(parents=True, exist_ok=True)
+            client = chromadb.PersistentClient(
+                path=path,
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
+            _collections[project] = client.get_or_create_collection(
+                name="papers",
+                metadata={"hnsw:space": "cosine"},
+            )
         logger.info(f"ChromaDB collection for project '{project}' ready at {path} ({_collections[project].count()} docs)")
     return _collections[project]
-
 
 
 def ingest_chunks(paper_id: str, chunks: list[str], metadata_extra: dict | None = None):
     """Store text chunks for a paper in ChromaDB."""
     if not chunks:
         return
-    collection = _get_collection()
-    ef = _get_embedding_fn()
-
-    ids = [f"{paper_id}_{i}" for i in range(len(chunks))]
-    metadatas = [{"paper_id": paper_id, **(metadata_extra or {})} for _ in chunks]
-
-    # Embed
-    embeddings = ef(chunks)
-
-    # Delete old chunks for this paper (re-ingest idempotency)
     try:
-        existing = collection.get(where={"paper_id": paper_id})
-        if existing["ids"]:
-            collection.delete(ids=existing["ids"])
-    except Exception:
-        pass
+        collection = _get_collection()
+        ef = _get_embedding_fn()
 
-    collection.add(
-        ids=ids,
-        documents=chunks,
-        embeddings=embeddings,
-        metadatas=metadatas,
-    )
-    logger.info(f"Ingested {len(chunks)} chunks for paper {paper_id}")
+        ids = [f"{paper_id}_{i}" for i in range(len(chunks))]
+        metadatas = [{"paper_id": paper_id, **(metadata_extra or {})} for _ in chunks]
+        embeddings = ef(chunks)
+
+        collection.upsert(
+            ids=ids,
+            documents=chunks,
+            embeddings=embeddings,
+            metadatas=metadatas,
+        )
+        logger.info(f"Ingested {len(chunks)} chunks for paper {paper_id}")
+    except Exception as e:
+        logger.error(f"Failed to ingest chunks for paper {paper_id}: {e}")
 
 
 def retrieve(query: str, top_k: int | None = None) -> list[dict]:
@@ -85,35 +95,40 @@ def retrieve(query: str, top_k: int | None = None) -> list[dict]:
     Returns list of {text, paper_id, distance}.
     """
     k = top_k or settings.rag_top_k
-    collection = _get_collection()
+    try:
+        collection = _get_collection()
 
-    if collection.count() == 0:
-        return []
+        if collection.count() == 0:
+            return []
 
-    ef = _get_embedding_fn()
-    query_embedding = ef([query])[0]
+        ef = _get_embedding_fn()
+        query_embedding = ef([query])[0]
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=min(k, collection.count()),
-        include=["documents", "metadatas", "distances"],
-    )
-
-    output = []
-    for doc, meta, dist in zip(
-        results["documents"][0],
-        results["metadatas"][0],
-        results["distances"][0],
-    ):
-        output.append(
-            {
-                "text": doc,
-                "paper_id": meta.get("paper_id", ""),
-                "title": meta.get("title", ""),
-                "distance": dist,
-            }
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=min(k, collection.count()),
+            include=["documents", "metadatas", "distances"],
         )
-    return output
+
+        output = []
+        if results and results.get("documents") and len(results["documents"]) > 0:
+            for doc, meta, dist in zip(
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0],
+            ):
+                output.append(
+                    {
+                        "text": doc,
+                        "paper_id": meta.get("paper_id", "") if isinstance(meta, dict) else "",
+                        "title": meta.get("title", "") if isinstance(meta, dict) else "",
+                        "distance": dist,
+                    }
+                )
+        return output
+    except Exception as e:
+        logger.error(f"Error in RAG retrieve: {e}")
+        return []
 
 
 def get_collection_stats() -> dict:

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.project import ProjectContextMiddleware
-from app.routers import upload, extract, graph, gaps, search, papers, projects, export
+from app.routers import upload, extract, graph, gaps, search, papers, projects, export, curate, analytics, ollama
 
 logging.basicConfig(
     level=logging.INFO,
@@ -99,6 +99,8 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.neo4j_driver import close_driver
         await close_driver()
+        from app.core.ollama_client import close_httpx_client
+        await close_httpx_client()
     except Exception:
         pass
     logger.info("👋 ResearchGap AI shut down")
@@ -129,6 +131,9 @@ app.include_router(search.router)
 app.include_router(papers.router)
 app.include_router(projects.router)
 app.include_router(export.router)
+app.include_router(curate.router)
+app.include_router(analytics.router)
+app.include_router(ollama.router)
 
 
 @app.get("/")

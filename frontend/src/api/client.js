@@ -76,5 +76,16 @@ export const polishProposal   = (id) => api.post(`/gaps/proposals/${encodeURICom
 export const getProjects    = () => api.get('/projects')
 export const deleteProject  = (name) => api.delete(`/projects/${encodeURIComponent(name)}`)
 
+// Ollama Management & Controls
+export const getOllamaStatus = () => api.get('/ollama/status')
+export const getOllamaModels = () => api.get('/ollama/models')
+export const updateOllamaConfig = (config) => api.post('/ollama/config', config)
+
+// Export helpers
+export const exportProposalPDF = (id) => `/api/gaps/proposals/${encodeURIComponent(id)}/export`
+export const exportProposalMarkdown = (id) => `/api/gaps/proposals/${encodeURIComponent(id)}/export/markdown`
+export const exportProposalLatex = (id) => `/api/gaps/proposals/${encodeURIComponent(id)}/export/latex`
+
+
 
 

@@ -30,13 +30,16 @@
   ::-webkit-scrollbar {
     width: 6px;
   }
+
   ::-webkit-scrollbar-track {
     background: #10131f;
   }
+
   ::-webkit-scrollbar-thumb {
     background: #353aa8;
     border-radius: 3px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background: #6172f3;
   }
@@ -45,22 +48,15 @@
 @layer components {
   .glass-card {
     @apply bg-surface-700/60 backdrop-blur-xl border border-white/5 rounded-2xl;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white
-           bg-gradient-to-r from-brand-600 to-brand-500
-           hover:from-brand-500 hover:to-brand-400
-           transition-all duration-200 shadow-glow-brand
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 transition-all duration-200 shadow-glow-brand active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm
-           bg-surface-500 border border-white/10
-           hover:bg-surface-400 hover:border-white/20
-           transition-all duration-200 active:scale-95;
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-surface-500 border border-white/10 hover:bg-surface-400 hover:border-white/20 transition-all duration-200 active:scale-95;
   }
 
   .badge {
@@ -80,10 +76,7 @@
   }
 
   .input-base {
-    @apply w-full px-4 py-3 rounded-xl bg-surface-600 border border-white/10
-           text-white placeholder-slate-500 outline-none
-           focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
-           transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-xl bg-surface-600 border border-white/10 text-white placeholder-slate-500 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all duration-200;
   }
 
   .section-title {
@@ -91,9 +84,7 @@
   }
 
   .nav-link {
-    @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs lg:text-sm lg:px-3 font-medium whitespace-nowrap shrink-0
-           text-slate-400 hover:text-white hover:bg-surface-500/80
-           transition-all duration-150;
+    @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs lg:text-sm lg:px-3 font-medium whitespace-nowrap shrink-0 text-slate-400 hover:text-white hover:bg-surface-500/80 transition-all duration-150;
   }
 
   .nav-link.active {
@@ -103,10 +94,10 @@
 
 /* Animated mesh background */
 .mesh-bg {
-  background: radial-gradient(ellipse at 20% 50%, rgba(97,114,243,0.15) 0%, transparent 60%),
-              radial-gradient(ellipse at 80% 20%, rgba(167,139,250,0.1) 0%, transparent 50%),
-              radial-gradient(ellipse at 60% 80%, rgba(34,211,238,0.08) 0%, transparent 50%),
-              #0a0c14;
+  background: radial-gradient(ellipse at 20% 50%, rgba(97, 114, 243, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(167, 139, 250, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(34, 211, 238, 0.08) 0%, transparent 50%),
+    #0a0c14;
 }
 
 /* Glowing progress bar */
@@ -118,14 +109,19 @@
 .graph-tooltip {
   @apply absolute z-50 px-3 py-2 rounded-lg text-xs font-medium text-white pointer-events-none;
   background: rgba(22, 25, 38, 0.95);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
 }
 
 /* Skeleton loader */
 @keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+
+  100% {
+    background-position: 400px 0;
+  }
 }
 
 .skeleton {
@@ -139,43 +135,76 @@
 .stat-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(97,114,243,0.2);
+  box-shadow: 0 8px 30px rgba(97, 114, 243, 0.2);
 }
 
 /* Fade in animation */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out both;
 }
 
 /* Slide up animation */
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .animate-slide-up {
   animation: slideUp 0.35s ease-out both;
 }
 
 /* Float animation */
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
+
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
 
 /* Pulse slow */
 @keyframes pulseSlow {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
+
 .animate-pulse-slow {
   animation: pulseSlow 2.5s ease-in-out infinite;
 }
@@ -189,79 +218,108 @@
 .chat-user {
   @apply ml-auto bg-brand-900/80 border border-brand-700/40 rounded-2xl rounded-tr-sm px-4 py-3 max-w-lg text-sm text-slate-200;
 }
+
 .chat-ai {
   @apply mr-auto bg-surface-600/80 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 max-w-2xl text-sm text-slate-200 leading-relaxed;
 }
 
 /* ─── Node Detail Panel ─────────────────────────────────── */
 @keyframes slideInRight {
-  from { transform: translateX(100%); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
+
 @keyframes slideOutRight {
-  from { transform: translateX(0);    opacity: 1; }
-  to   { transform: translateX(100%); opacity: 0; }
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
+
 .panel-enter {
   animation: slideInRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
 .panel-exit {
   animation: slideOutRight 0.22s ease-in both;
 }
 
-/* Analytics panel */
 @keyframes slideInLeft {
-  from { transform: translateX(-100%); opacity: 0; }
-  to   { transform: translateX(0);     opacity: 1; }
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
+
 .panel-enter-left {
   animation: slideInLeft 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Node type pill */
 .node-pill {
   @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold;
 }
 
-/* Graph degree badge */
 .degree-badge {
   @apply inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold bg-white/10 text-slate-300;
 }
 
-/* Connection bar fill */
 .conn-bar {
   height: 4px;
   border-radius: 2px;
   transition: width 0.5s ease;
 }
 
-/* Scrollable panel body */
 .panel-scroll {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #353aa8 transparent;
 }
-.panel-scroll::-webkit-scrollbar { width: 4px; }
-.panel-scroll::-webkit-scrollbar-track { background: transparent; }
-.panel-scroll::-webkit-scrollbar-thumb { background: #353aa8; border-radius: 2px; }
 
-/* Graph controls backdrop */
+.panel-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: #353aa8;
+  border-radius: 2px;
+}
+
 .graph-controls-bar {
   background: rgba(10, 12, 20, 0.88);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Glowing stat pill */
 .stat-pill {
   @apply flex flex-col items-center px-4 py-1.5 rounded-xl bg-surface-700/60 border border-white/5;
   transition: box-shadow 0.2s ease;
 }
+
 .stat-pill:hover {
-  box-shadow: 0 0 12px rgba(97,114,243,0.25);
+  box-shadow: 0 0 12px rgba(97, 114, 243, 0.25);
 }
 
-/* Relationship legend line */
 .rel-legend-line {
   display: inline-block;
   width: 28px;
@@ -271,8 +329,13 @@
 }
 
 /* Custom border opacity utilities */
-.border-white\/8  { border-color: rgba(255,255,255,0.08); }
-.border-white\/12 { border-color: rgba(255,255,255,0.12); }
+.border-white\/8 {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.border-white\/12 {
+  border-color: rgba(255, 255, 255, 0.12);
+}
 
 /* Navbar analytics dropdown */
 .nav-dropdown {
@@ -288,11 +351,11 @@
 
 /* Smooth box shadow on quick-action card hover */
 .quick-action-card:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* Improved tooltip */
 [title]:hover::after {
-  content: none; /* override browser default, use custom tooltips */
+  content: none;
+  /* override browser default, use custom tooltips */
 }
-
