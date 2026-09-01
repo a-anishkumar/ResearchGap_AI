@@ -5,7 +5,7 @@ import { useToast } from './Toast'
 import { formatNodeLabel } from '../utils/textUtils'
 
 export default function CompareModal() {
-  const { comparePaperIds, isCompareModalOpen, setCompareModalOpen, clearComparePaperIds, papers } = useStore()
+  const { comparePaperIds, isCompareModalOpen, setCompareModalOpen, clearComparePaperIds } = useStore()
   const toast = useToast()
 
   const [loading, setLoading] = useState(false)

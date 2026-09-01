@@ -35,7 +35,7 @@ export default function UploadPage() {
     setError(null)
     setNearDupWarning(null)
     try {
-      const { data, status } = await uploadPapers(files, (e) => {
+      const { data } = await uploadPapers(files, (e) => {
         setUploadProgress(Math.round((e.loaded / e.total) * 100))
       })
 

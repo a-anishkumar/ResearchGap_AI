@@ -10,11 +10,7 @@ const TYPE_META = {
   Result:  { icon: '📈', color: '#34d399', bg: 'rgba(52,211,153,0.1)',   border: 'rgba(52,211,153,0.3)',   label: 'Result'  },
 }
 
-const LINK_COLORS = {
-  USES_METHOD:       '#6172f3',
-  APPLIES_TO_DOMAIN: '#a78bfa',
-  EVALUATES_ON:      '#fbbf24',
-}
+
 
 function Skeleton({ className = '' }) {
   return <div className={`skeleton h-4 rounded ${className}`} />

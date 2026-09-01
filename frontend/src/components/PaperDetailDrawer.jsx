@@ -8,7 +8,6 @@ export default function PaperDetailDrawer() {
   const { 
     selectedPaper, 
     setSelectedPaper, 
-    papers, 
     updatePaper, 
     removePaper,
     setGraphData,
@@ -48,8 +47,6 @@ export default function PaperDetailDrawer() {
   const [explaining, setExplaining] = useState(false)
   const [explanationResult, setExplanationResult] = useState(null)
 
-  // Find the live processing state for the paper
-  const liveState = papers.find(p => p.paper_id === selectedPaper?.paper_id)
 
   useEffect(() => {
     if (!selectedPaper) { 
@@ -764,7 +761,7 @@ export default function PaperDetailDrawer() {
 
           <button
             onClick={handleReprocess}
-            disabled={reprocessing || liveState?.stage === 'done' === false}
+            disabled={reprocessing}
             className="btn-secondary text-xs flex-1 justify-center flex items-center gap-1.5"
           >
             {reprocessing ? (

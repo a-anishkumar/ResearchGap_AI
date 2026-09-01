@@ -97,13 +97,7 @@ function RocketIcon({ className = "w-12 h-12" }) {
   )
 }
 
-function SparklesIcon({ className = "w-5 h-5" }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-    </svg>
-  )
-}
+
 
 const STAT_CARDS = [
   { key: 'papers',        label: 'Papers',    icon: <PaperIcon />,   color: 'text-brand-400',   bg: 'bg-brand-900/40',   border: 'border-brand-700/30' },
@@ -129,8 +123,8 @@ const WORKFLOW_STEPS = [
   { label: 'Find Gaps',      page: 'gaps',       icon: '🔍' },
 ]
 
-export default function DashboardPage({ setActiveTab }) {
-  const { setGraphStats, setPapers, setHealth } = useStore()
+export default function DashboardPage() {
+  const { setGraphStats, setPapers, setHealth, setPage } = useStore()
   const graphStats = useStore((s) => s.graphStats)
   const papers     = useStore((s) => s.papers)
   const health     = useStore((s) => s.health)
@@ -215,7 +209,7 @@ export default function DashboardPage({ setActiveTab }) {
               return (
                 <div key={step.page} className="flex items-center gap-2 flex-1 min-w-0">
                   <button
-                    onClick={() => setActiveTab && setActiveTab(step.page)}
+                    onClick={() => setPage(step.page)}
                     className={`flex flex-col sm:flex-row items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all w-full text-center sm:text-left
                       ${ isDone
                         ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-950/50'

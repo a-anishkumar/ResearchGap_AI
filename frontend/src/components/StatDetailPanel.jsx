@@ -152,7 +152,7 @@ function EntityItem({ name, count, papers, color, icon, onSelectPaper }) {
               onClick={(e) => {
                 e.stopPropagation()
                 if (normalizedPapers.length === 1) {
-                  onSelectPaper && onSelectPaper(p0)
+                  if (onSelectPaper) onSelectPaper(p0)
                 } else {
                   setOpen(v => !v)
                 }
@@ -225,7 +225,7 @@ function ResultItem({ metric, value, description, papers, onSelectPaper }) {
               onClick={(e) => {
                 e.stopPropagation()
                 if (normalizedPapers.length === 1) {
-                  onSelectPaper && onSelectPaper(p0)
+                  if (onSelectPaper) onSelectPaper(p0)
                 } else {
                   setOpen(v => !v)
                 }

@@ -233,52 +233,10 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
 
   const structured = parseStructuredSuggestion(gap.suggestion)
 
-  const [validation, setValidation] = useState(null)
-  const [validating, setValidating] = useState(false)
-
   const handleCopy = () => {
     const text = gap.suggestion || ''
     navigator.clipboard.writeText(text)
     toast?.success('Research opportunity copied!')
-  }
-
-  const handleExportBibTeX = async () => {
-    try {
-      const res = await fetch(`/api/gaps/export/bibtex?method=${encodeURIComponent(gap.method)}&domain=${encodeURIComponent(gap.domain)}`)
-      if (!res.ok) throw new Error('BibTeX export failed')
-      const text = await res.text()
-      navigator.clipboard.writeText(text)
-      toast?.success('BibTeX references copied to clipboard!')
-    } catch (err) {
-      toast?.error(`Export error: ${err.message}`)
-    }
-  }
-
-  const handleExportLaTeX = async () => {
-    try {
-      const res = await fetch(`/api/gaps/export/latex?method=${encodeURIComponent(gap.method)}&domain=${encodeURIComponent(gap.domain)}`)
-      if (!res.ok) throw new Error('LaTeX export failed')
-      const text = await res.text()
-      navigator.clipboard.writeText(text)
-      toast?.success('LaTeX proposal template copied to clipboard!')
-    } catch (err) {
-      toast?.error(`Export error: ${err.message}`)
-    }
-  }
-
-  const handleVerifyArxiv = async () => {
-    setValidating(true)
-    try {
-      const res = await fetch(`/api/gaps/validate?method=${encodeURIComponent(gap.method)}&domain=${encodeURIComponent(gap.domain)}`)
-      if (!res.ok) throw new Error('Validation failed')
-      const data = await res.json()
-      setValidation(data)
-      toast?.info(`arXiv check: ${data.status}`)
-    } catch (err) {
-      toast?.error(`Validation error: ${err.message}`)
-    } finally {
-      setValidating(false)
-    }
   }
 
   const scoreValue = gap.score || 0
@@ -316,16 +274,6 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
                 <DomainIcon className="w-3.5 h-3.5 text-cyan-400" />
                 {gap.domain}
               </span>
-
-              {validation && (
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                  validation.external_presence 
-                    ? 'bg-amber-950/40 text-amber-300 border-amber-800/40' 
-                    : 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
-                }`}>
-                  {validation.status}
-                </span>
-              )}
             </div>
 
             {/* Frequency bars */}
@@ -354,28 +302,6 @@ export default function GapCard({ gap, rank, maxScore = 1 }) {
                 title="Open Research Proposal & Proposal Polish Generator"
               >
                 <span>✨ Proposal & Polish</span>
-              </button>
-              <button
-                onClick={handleVerifyArxiv}
-                disabled={validating}
-                className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-400 hover:text-white bg-surface-600/50 hover:bg-surface-500 border border-white/5 transition-all"
-                title="Verify gap against arXiv literature API"
-              >
-                {validating ? 'Checking...' : 'Verify arXiv'}
-              </button>
-              <button
-                onClick={handleExportBibTeX}
-                className="px-2 py-1 rounded-md text-[11px] font-medium text-brand-400 hover:text-brand-300 bg-brand-950/40 hover:bg-brand-900/60 border border-brand-800/30 transition-all"
-                title="Copy BibTeX references"
-              >
-                BibTeX
-              </button>
-              <button
-                onClick={handleExportLaTeX}
-                className="px-2 py-1 rounded-md text-[11px] font-medium text-cyan-400 hover:text-cyan-300 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/30 transition-all"
-                title="Copy LaTeX research proposal template"
-              >
-                LaTeX
               </button>
               <button
                 onClick={handleCopy}
